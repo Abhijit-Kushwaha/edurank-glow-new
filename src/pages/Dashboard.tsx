@@ -61,7 +61,7 @@ const mockVideoRecs: VideoRec[] = [
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const [todos, setTodos] = useState<Todo[]>([
     { id: '1', title: 'Learn Machine Learning basics', completed: false, videoId: 'dQw4w9WgXcQ' },
     { id: '2', title: 'Study Data Structures', completed: true, videoId: 'jNQXAC9IVRw', quizUnlocked: true },
@@ -71,6 +71,9 @@ const Dashboard = () => {
 
   const completedCount = todos.filter((t) => t.completed).length;
   const progress = todos.length > 0 ? (completedCount / todos.length) * 100 : 0;
+
+  // Get display name from profile or user metadata
+  const displayName = profile?.name || user?.user_metadata?.name || user?.email?.split('@')[0] || 'Student';
 
   const handleAddTodo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,7 +122,7 @@ const Dashboard = () => {
           <Logo size="sm" />
           <div className="flex items-center gap-4">
             <span className="text-sm text-muted-foreground hidden sm:block">
-              Hi, {user?.name || 'Student'}!
+              Hi, {displayName}!
             </span>
             <Button variant="ghost" size="icon" onClick={handleLogout}>
               <LogOut className="h-5 w-5" />

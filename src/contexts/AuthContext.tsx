@@ -1,14 +1,19 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User, Session } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
 
-// Mock user type for now - will be replaced with Supabase types
-interface User {
+interface Profile {
   id: string;
-  email: string;
-  name?: string;
+  user_id: string;
+  name: string | null;
+  email: string | null;
+  avatar_url: string | null;
 }
 
 interface AuthContextType {
   user: User | null;
+  session: Session | null;
+  profile: Profile | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ error?: string }>;
   signup: (email: string, password: string, name: string) => Promise<{ error?: string }>;
@@ -31,54 +36,124 @@ interface AuthProviderProps {
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // Check for existing session on mount
-    const storedUser = localStorage.getItem('edurank_user');
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
+  const fetchProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching profile:', error);
+        return null;
+      }
+      return data;
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+      return null;
     }
-    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        console.log('Auth state changed:', event);
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        // Defer profile fetch with setTimeout to avoid deadlock
+        if (session?.user) {
+          setTimeout(() => {
+            fetchProfile(session.user.id).then(setProfile);
+          }, 0);
+        } else {
+          setProfile(null);
+        }
+      }
+    );
+
+    // THEN check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        fetchProfile(session.user.id).then(setProfile);
+      }
+      setIsLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const login = async (email: string, password: string): Promise<{ error?: string }> => {
     try {
-      // Mock login - will be replaced with Supabase auth
-      if (email && password.length >= 6) {
-        const mockUser = { id: '1', email, name: email.split('@')[0] };
-        setUser(mockUser);
-        localStorage.setItem('edurank_user', JSON.stringify(mockUser));
-        return {};
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        console.error('Login error:', error);
+        return { error: error.message };
       }
-      return { error: 'Invalid credentials' };
+
+      return {};
     } catch (error) {
-      return { error: 'Login failed' };
+      console.error('Login error:', error);
+      return { error: 'Login failed. Please try again.' };
     }
   };
 
   const signup = async (email: string, password: string, name: string): Promise<{ error?: string }> => {
     try {
-      // Mock signup - will be replaced with Supabase auth
-      if (email && password.length >= 6 && name) {
-        const mockUser = { id: '1', email, name };
-        setUser(mockUser);
-        localStorage.setItem('edurank_user', JSON.stringify(mockUser));
-        return {};
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            name: name,
+            full_name: name,
+          },
+        },
+      });
+
+      if (error) {
+        console.error('Signup error:', error);
+        if (error.message.includes('already registered')) {
+          return { error: 'This email is already registered. Please sign in instead.' };
+        }
+        return { error: error.message };
       }
-      return { error: 'Please fill all fields correctly' };
+
+      return {};
     } catch (error) {
-      return { error: 'Signup failed' };
+      console.error('Signup error:', error);
+      return { error: 'Signup failed. Please try again.' };
     }
   };
 
   const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Logout error:', error);
+    }
     setUser(null);
-    localStorage.removeItem('edurank_user');
+    setSession(null);
+    setProfile(null);
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, session, profile, isLoading, login, signup, logout }}>
       {children}
     </AuthContext.Provider>
   );

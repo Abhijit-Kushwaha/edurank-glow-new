@@ -3,15 +3,25 @@ import { Sparkles, Play, BookOpen, Trophy, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffect } from 'react';
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isLoading } = useAuth();
 
   // Redirect to dashboard if already logged in
-  if (user) {
-    navigate('/dashboard');
-    return null;
+  useEffect(() => {
+    if (!isLoading && user) {
+      navigate('/dashboard');
+    }
+  }, [user, isLoading, navigate]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   return (

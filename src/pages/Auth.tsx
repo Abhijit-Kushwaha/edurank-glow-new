@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, ArrowRight, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
@@ -14,7 +14,14 @@ const Auth = () => {
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-  const { login, signup } = useAuth();
+  const { login, signup, user } = useAuth();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +37,11 @@ const Auth = () => {
           navigate('/dashboard');
         }
       } else {
+        if (!name.trim()) {
+          toast.error('Please enter your name');
+          setIsLoading(false);
+          return;
+        }
         const { error } = await signup(email, password, name);
         if (error) {
           toast.error(error);
@@ -82,7 +94,7 @@ const Auth = () => {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="pl-10"
-                  required
+                  required={!isLogin}
                 />
               </div>
             )}
