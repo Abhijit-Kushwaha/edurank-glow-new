@@ -13,6 +13,7 @@ import Notes from "./pages/Notes";
 import Quiz from "./pages/Quiz";
 import Profile from "./pages/Profile";
 import QuizHistory from "./pages/QuizHistory";
+import Leaderboard from "./pages/Leaderboard";
 import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 
@@ -82,6 +83,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <QuizHistory />
+                </ProtectedRoute>
+              }
+              />
+            <Route
+              path="/leaderboard"
+              element={
+                <ProtectedRoute>
+                  <Leaderboard />
                 </ProtectedRoute>
               }
             />

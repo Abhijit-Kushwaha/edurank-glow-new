@@ -263,6 +263,9 @@ const Dashboard = () => {
             <span className="text-sm text-muted-foreground hidden sm:block">
               Hi, {displayName}!
             </span>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/leaderboard')} title="Leaderboard">
+              <Trophy className="h-5 w-5" />
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate('/profile')}>
               <User className="h-5 w-5" />
             </Button>

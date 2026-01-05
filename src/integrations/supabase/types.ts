@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      leaderboard_stats: {
+        Row: {
+          average_score: number
+          best_score: number
+          created_at: string
+          current_streak: number
+          display_name: string
+          id: string
+          last_activity_date: string | null
+          longest_streak: number
+          total_correct: number
+          total_questions: number
+          total_quizzes: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          average_score?: number
+          best_score?: number
+          created_at?: string
+          current_streak?: number
+          display_name?: string
+          id?: string
+          last_activity_date?: string | null
+          longest_streak?: number
+          total_correct?: number
+          total_questions?: number
+          total_quizzes?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          average_score?: number
+          best_score?: number
+          created_at?: string
+          current_streak?: number
+          display_name?: string
+          id?: string
+          last_activity_date?: string | null
+          longest_streak?: number
+          total_correct?: number
+          total_questions?: number
+          total_quizzes?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notes: {
         Row: {
           content: string
