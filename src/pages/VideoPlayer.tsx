@@ -9,6 +9,7 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
+  User,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -44,7 +45,7 @@ interface Subtask {
 const VideoPlayer = () => {
   const { todoId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [player, setPlayer] = useState<YouTubePlayer | null>(null);
   const [progress, setProgress] = useState(0);
   const [showNotesButton, setShowNotesButton] = useState(false);
@@ -315,7 +316,7 @@ const VideoPlayer = () => {
             </Button>
             <Logo size="sm" />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground">
               {Math.round(progress)}% watched
             </span>
@@ -325,6 +326,23 @@ const VideoPlayer = () => {
                 AI Notes
               </Button>
             )}
+            {/* Profile Picture */}
+            <button
+              onClick={() => navigate('/profile')}
+              className="w-9 h-9 rounded-full overflow-hidden border-2 border-primary/50 hover:border-primary transition-colors flex-shrink-0"
+            >
+              {profile?.avatar_url ? (
+                <img
+                  src={profile.avatar_url}
+                  alt={profile.name || 'Profile'}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-primary/20 flex items-center justify-center">
+                  <User className="h-4 w-4 text-primary" />
+                </div>
+              )}
+            </button>
           </div>
         </div>
       </header>

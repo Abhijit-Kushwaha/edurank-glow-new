@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Play, Clock, Eye, User } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Play, Clock, Eye, User, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -98,11 +98,14 @@ const SubtasksSidebar = ({ subtasks, onVideoSelect, currentVideoId, mainVideo }:
                 </div>
               )}
 
-              {/* Subtasks */}
+              {/* AI-Curated Related Topics */}
               {subtasks.length > 0 && (
-                <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 px-1">
-                  Related Topics
-                </h3>
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <Sparkles className="h-3 w-3 text-primary" />
+                  <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    AI-Curated Topics
+                  </h3>
+                </div>
               )}
               {subtasks
                 .sort((a, b) => a.order_index - b.order_index)
