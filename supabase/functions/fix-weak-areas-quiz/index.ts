@@ -11,6 +11,38 @@ interface TopicInput {
   weaknessScore: number;
 }
 
+// Bytez AI call function
+async function callBytezAI(messages: { role: string; content: string }[]): Promise<string> {
+  const BYTEZ_API_KEY = Deno.env.get('BYTEZ_API_KEY');
+  if (!BYTEZ_API_KEY) {
+    throw new Error('BYTEZ_API_KEY is not configured');
+  }
+
+  console.log('Calling Bytez AI...');
+  
+  const response = await fetch('https://api.bytez.com/models/v2/google/gemini-3-pro-preview/run', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${BYTEZ_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ messages }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Bytez API error:', response.status, errorText);
+    
+    if (response.status === 429) {
+      throw new Error('Rate limit exceeded. Please try again later.');
+    }
+    throw new Error(`Bytez API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.output || data.choices?.[0]?.message?.content || '';
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -27,14 +59,6 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
-
-    if (!lovableApiKey) {
-      return new Response(
-        JSON.stringify({ error: "AI service not configured" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
 
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -84,7 +108,7 @@ ${notes.substring(0, 6000)}
 
     const totalQuestions = Math.min(sortedTopics.length * questionsPerTopic, 10);
 
-    const systemPrompt = `You are an educational quiz generator specialized in helping students improve their weak areas.
+    const prompt = `You are an educational quiz generator specialized in helping students improve their weak areas.
 
 Your task is to generate targeted practice questions that:
 1. Focus on the EXACT concepts the student is weak in
@@ -92,9 +116,9 @@ Your task is to generate targeted practice questions that:
 3. Include clear explanations for each answer
 4. Test understanding, not just memorization
 
-CRITICAL: Generate questions that specifically target the weak concepts listed below.`;
+CRITICAL: Generate questions that specifically target the weak concepts listed below.
 
-    const userPrompt = `Generate ${totalQuestions} practice questions targeting these weak topics:
+Generate ${totalQuestions} practice questions targeting these weak topics:
 
 ${topicsDescription}
 ${contentContext}
@@ -118,41 +142,7 @@ Return ONLY a valid JSON object in this exact format:
   ]
 }`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${lovableApiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-    });
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required. Please add credits." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      throw new Error("Failed to generate questions");
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
+    const content = await callBytezAI([{ role: 'user', content: prompt }]);
 
     // Parse JSON from response
     const jsonMatch = content.match(/\{[\s\S]*\}/);

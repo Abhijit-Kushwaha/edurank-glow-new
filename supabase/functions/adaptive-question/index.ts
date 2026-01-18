@@ -6,9 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Credit cost for this operation (adaptive questions are part of quiz flow, no extra charge)
-const CREDIT_COST = 0;
-
 const MAX_NOTES_LENGTH = 50000;
 const FORBIDDEN_PATTERNS = [
   /ignore\s+(all\s+)?previous\s+instructions/i,
@@ -50,17 +47,44 @@ function sanitizeInput(input: string, maxLength: number): { isValid: boolean; sa
   return { isValid: true, sanitized };
 }
 
+// Bytez AI call function
+async function callBytezAI(messages: { role: string; content: string }[]): Promise<string> {
+  const BYTEZ_API_KEY = Deno.env.get('BYTEZ_API_KEY');
+  if (!BYTEZ_API_KEY) {
+    throw new Error('BYTEZ_API_KEY is not configured');
+  }
+
+  console.log('Calling Bytez AI...');
+  
+  const response = await fetch('https://api.bytez.com/models/v2/google/gemini-3-pro-preview/run', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${BYTEZ_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ messages }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Bytez API error:', response.status, errorText);
+    
+    if (response.status === 429) {
+      throw new Error('Rate limit exceeded. Please try again later.');
+    }
+    throw new Error(`Bytez API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.output || data.choices?.[0]?.message?.content || '';
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -128,7 +152,7 @@ serve(async (req) => {
       }
     }
 
-    const systemPrompt = `You are an adaptive assessment designer. Generate a single follow-up question based on the student's performance.
+    const prompt = `You are an adaptive assessment designer. Generate a single follow-up question based on the student's performance.
 
 ${difficultyInstruction}
 
@@ -152,49 +176,17 @@ Respond with ONLY valid JSON, no markdown:
   "options": ["Option A", "Option B", "Option C", "Option D"],
   "correctAnswer": 0,
   "explanation": "Why this answer is correct"
-}`;
+}
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { 
-            role: "user", 
-            content: `Study Notes:\n${notesValidation.sanitized}\n\nPrevious Question: "${previousQuestion}"\nStudent answered: ${wasCorrect ? 'CORRECTLY' : 'INCORRECTLY'}\n\nGenerate an appropriate follow-up question.`
-          },
-        ],
-      }),
-    });
+Study Notes:
+${notesValidation.sanitized}
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+Previous Question: "${previousQuestion}"
+Student answered: ${wasCorrect ? 'CORRECTLY' : 'INCORRECTLY'}
 
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "Payment required. Please add credits." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
-      throw new Error(`AI gateway error: ${response.status}`);
-    }
+Generate an appropriate follow-up question.`;
 
-    const aiData = await response.json();
-    let questionContent = aiData.choices?.[0]?.message?.content;
+    const questionContent = await callBytezAI([{ role: 'user', content: prompt }]);
 
     if (!questionContent) {
       throw new Error("No content generated from AI");

@@ -4,11 +4,9 @@ import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 
 const teamMembers = [
-  { name: 'Prince Kumar Verma', role: 'UI Designer' },
-  { name: 'Abhijit Kushwaha', role: 'Backend Coder' },
-  { name: 'Abhinav Bajpai', role: 'Marketing Team' },
-  { name: 'Ananya Pandey', role: 'Customer Support & Marketing' },
-  { name: 'Sakshi Yadav', role: 'Data Management Incharge' },
+  { name: 'Prince Kumar Verma', role: 'UI Designer & Customer Support' },
+  { name: 'Abhijit Kushwaha', role: 'Backend Developer & Data Management' },
+  { name: 'Abhinav Bajpai', role: 'Marketing & Operations Lead' },
 ];
 
 const About = () => {

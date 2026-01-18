@@ -6,9 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Credit cost for this operation
-const CREDIT_COST = 1;
-
 // Input validation and sanitization constants
 const MAX_TOPIC_LENGTH = 200;
 const FORBIDDEN_PATTERNS = [
@@ -152,6 +149,38 @@ function formatViewCount(count: number): string {
   return count.toString();
 }
 
+// Bytez AI call function
+async function callBytezAI(messages: { role: string; content: string }[]): Promise<string> {
+  const BYTEZ_API_KEY = Deno.env.get('BYTEZ_API_KEY');
+  if (!BYTEZ_API_KEY) {
+    throw new Error('BYTEZ_API_KEY is not configured');
+  }
+
+  console.log('Calling Bytez AI...');
+  
+  const response = await fetch('https://api.bytez.com/models/v2/google/gemini-3-pro-preview/run', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${BYTEZ_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ messages }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Bytez API error:', response.status, errorText);
+    
+    if (response.status === 429) {
+      throw new Error('Rate limit exceeded. Please try again later.');
+    }
+    throw new Error(`Bytez API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.output || data.choices?.[0]?.message?.content || '';
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -183,33 +212,7 @@ serve(async (req) => {
       );
     }
 
-    // Consume credits atomically using service role
-    const serviceClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
-    const { data: consumed, error: creditError } = await serviceClient.rpc('consume_credits', { 
-      uid: user.id, 
-      amount: CREDIT_COST 
-    });
-
-    if (creditError) {
-      console.error('Credit consumption error:', creditError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to verify credits' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    if (!consumed) {
-      return new Response(
-        JSON.stringify({ error: 'Insufficient credits. Please wait for monthly reset.' }),
-        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    console.log(`Consumed ${CREDIT_COST} credit(s) for user ${user.id}`);
+    console.log(`Processing request for user ${user.id}`);
 
     const { topic } = await req.json();
     
@@ -223,29 +226,17 @@ serve(async (req) => {
     const sanitizedTopic = validation.sanitized;
 
     const YOUTUBE_API_KEY = Deno.env.get('youtube_api_key');
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     
     if (!YOUTUBE_API_KEY) {
       throw new Error('YouTube API key is not configured');
     }
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
-    }
 
     console.log('Finding videos for topic:', sanitizedTopic);
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
-        messages: [
-          {
-            role: 'system',
-            content: `You are an educational content planner. Break down learning topics into 3-5 logical subtasks/subtopics that someone would need to learn to master the main topic.
+    const content = await callBytezAI([
+      {
+        role: 'user',
+        content: `You are an educational content planner. Break down learning topics into 3-5 logical subtasks/subtopics that someone would need to learn to master the main topic.
 
 You must respond with ONLY a valid JSON object, no markdown, no code blocks.
 The JSON must have this exact structure:
@@ -257,40 +248,14 @@ The JSON must have this exact structure:
     }
   ],
   "mainSearchQuery": "best YouTube search query for the main topic"
-}`
-          },
-          {
-            role: 'user',
-            content: `Topic: "${sanitizedTopic}"
+}
+
+Topic: "${sanitizedTopic}"
 
 Break this into 3-5 subtasks and provide optimized YouTube search queries for educational videos on each. Add "tutorial", "explained", or "for beginners" to make searches more educational.`
-          }
-        ],
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error('AI Gateway error:', aiResponse.status, errorText);
-      
-      if (aiResponse.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }),
-          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
       }
-      if (aiResponse.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'Payment required. Please add credits.' }),
-          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      throw new Error('AI gateway error');
-    }
+    ]);
 
-    const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content;
-    
     console.log('AI response:', content);
 
     let parsedData;

@@ -104,6 +104,34 @@ function classifyStrength(weaknessScore: number, totalQuestions: number): string
   return "weak";
 }
 
+// Bytez AI call function
+async function callBytezAI(messages: { role: string; content: string }[]): Promise<string> {
+  const BYTEZ_API_KEY = Deno.env.get('BYTEZ_API_KEY');
+  if (!BYTEZ_API_KEY) {
+    throw new Error('BYTEZ_API_KEY is not configured');
+  }
+
+  console.log('Calling Bytez AI...');
+  
+  const response = await fetch('https://api.bytez.com/models/v2/google/gemini-3-pro-preview/run', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${BYTEZ_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ messages }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Bytez API error:', response.status, errorText);
+    throw new Error(`Bytez API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.output || data.choices?.[0]?.message?.content || '';
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -121,7 +149,6 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const lovableApiKey = Deno.env.get("LOVABLE_API_KEY");
 
     const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -156,57 +183,38 @@ serve(async (req) => {
     // Step 1: Use AI to extract topics from each question
     const questionsWithTopics: QuestionAttempt[] = [];
     
-    if (lovableApiKey && questions.length > 0) {
-      try {
-        const questionTexts = questions.map((q: any) => q.questionText).join("\n---\n");
-        
-        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableApiKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash",
-            messages: [
-              {
-                role: "system",
-                content: `You are an educational topic classifier. For each question, identify the main concept/topic being tested. 
+    try {
+      const questionTexts = questions.map((q: any) => q.questionText).join("\n---\n");
+      
+      const topicsText = await callBytezAI([
+        {
+          role: 'user',
+          content: `You are an educational topic classifier. For each question, identify the main concept/topic being tested. 
 Return a JSON array of topic names, one for each question.
 Topics should be concise (2-4 words), educational, and specific.
 Examples: "Neural Networks", "Backpropagation", "Activation Functions", "Gradient Descent", "Data Preprocessing"
 
-IMPORTANT: Return ONLY a valid JSON array of strings, nothing else.`
-              },
-              {
-                role: "user",
-                content: `Extract the main topic for each of these ${questions.length} questions (separated by ---):
+IMPORTANT: Return ONLY a valid JSON array of strings, nothing else.
+
+Extract the main topic for each of these ${questions.length} questions (separated by ---):
 
 ${questionTexts}`
-              }
-            ],
-          }),
-        });
-
-        if (aiResponse.ok) {
-          const aiData = await aiResponse.json();
-          const topicsText = aiData.choices?.[0]?.message?.content || "";
-          
-          // Parse topics from AI response
-          const jsonMatch = topicsText.match(/\[[\s\S]*\]/);
-          if (jsonMatch) {
-            const topics = JSON.parse(jsonMatch[0]);
-            questions.forEach((q: any, i: number) => {
-              questionsWithTopics.push({
-                ...q,
-                topicName: topics[i] || "General Knowledge"
-              });
-            });
-          }
         }
-      } catch (aiError) {
-        console.error("AI topic extraction failed:", aiError);
+      ]);
+
+      // Parse topics from AI response
+      const jsonMatch = topicsText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const topics = JSON.parse(jsonMatch[0]);
+        questions.forEach((q: any, i: number) => {
+          questionsWithTopics.push({
+            ...q,
+            topicName: topics[i] || "General Knowledge"
+          });
+        });
       }
+    } catch (aiError) {
+      console.error("AI topic extraction failed:", aiError);
     }
 
     // Fallback if AI failed
@@ -338,7 +346,6 @@ ${questionTexts}`
       const globalAvgTime = globalStats?.avg_time_seconds || 30;
 
       // Compute cumulative stats (weight = 1/attempt_number for decay)
-      const weight = 1 / attemptNumber;
       const newTotalQuestions = (existingPerf?.total_questions || 0) + perf.totalQuestions;
       const newCorrectAnswers = (existingPerf?.correct_answers || 0) + perf.correctAnswers;
       const newTotalTime = (existingPerf?.total_time_seconds || 0) + perf.totalTimeSeconds;
@@ -502,20 +509,48 @@ ${questionTexts}`
         .insert(recommendations);
     }
 
-    console.log(`Analysis complete. Weak topics: ${weakTopics.length}, Recommendations: ${recommendations.length}`);
+    // Update leaderboard stats
+    const { data: allResults } = await supabaseClient
+      .from("quiz_results")
+      .select("score, correct_answers, total_questions")
+      .order("created_at", { ascending: false });
+
+    if (allResults && allResults.length > 0) {
+      const totalQuizzes = allResults.length;
+      const totalCorrect = allResults.reduce((sum, r) => sum + r.correct_answers, 0);
+      const totalQuestions = allResults.reduce((sum, r) => sum + r.total_questions, 0);
+      const averageScore = allResults.reduce((sum, r) => sum + r.score, 0) / totalQuizzes;
+      const bestScore = Math.max(...allResults.map(r => r.score));
+
+      await supabaseClient
+        .from("leaderboard_stats")
+        .upsert({
+          user_id: userId,
+          total_quizzes: totalQuizzes,
+          total_correct: totalCorrect,
+          total_questions: totalQuestions,
+          average_score: Math.round(averageScore),
+          best_score: bestScore,
+          last_activity_date: new Date().toISOString().split('T')[0],
+          updated_at: new Date().toISOString(),
+        }, {
+          onConflict: "user_id"
+        });
+    }
+
+    console.log(`Analysis complete: ${weakTopics.length} weak topics, ${recommendations.length} recommendations`);
 
     return new Response(
       JSON.stringify({
         success: true,
         weakTopics,
-        recommendations: recommendations.length,
-        topicsAnalyzed: Object.keys(topicPerformance).length,
+        recommendationsAdded: recommendations.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 
   } catch (error) {
-    console.error("Error in analyze-weakness:", error);
+    console.error("Error in analyze-weakness function:", error);
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
