@@ -6,9 +6,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Credit cost for this operation
-const CREDIT_COST = 4;
-
 // Input validation and sanitization constants
 const MAX_TITLE_LENGTH = 500;
 const MAX_ID_LENGTH = 100;
@@ -128,17 +125,44 @@ Focus on educational content that would help a student understand this topic tho
   }
 }
 
+// Bytez AI call function
+async function callBytezAI(messages: { role: string; content: string }[]): Promise<string> {
+  const BYTEZ_API_KEY = Deno.env.get('BYTEZ_API_KEY');
+  if (!BYTEZ_API_KEY) {
+    throw new Error('BYTEZ_API_KEY is not configured');
+  }
+
+  console.log('Calling Bytez AI...');
+  
+  const response = await fetch('https://api.bytez.com/models/v2/google/gemini-3-pro-preview/run', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${BYTEZ_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ messages }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Bytez API error:', response.status, errorText);
+    
+    if (response.status === 429) {
+      throw new Error('Rate limit exceeded. Please try again later.');
+    }
+    throw new Error(`Bytez API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.output || data.choices?.[0]?.message?.content || '';
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -161,33 +185,12 @@ serve(async (req) => {
       );
     }
 
-    // Consume credits atomically using service role
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    const { data: consumed, error: creditError } = await serviceClient.rpc('consume_credits', { 
-      uid: user.id, 
-      amount: CREDIT_COST 
-    });
-
-    if (creditError) {
-      console.error('Credit consumption error:', creditError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to verify credits' }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!consumed) {
-      return new Response(
-        JSON.stringify({ error: 'Insufficient credits (4 required). Please wait for monthly reset.' }),
-        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    console.log(`Consumed ${CREDIT_COST} credit(s) for user ${user.id}`);
+    console.log(`Processing notes request for user ${user.id}`);
 
     const { videoTitle, videoId, todoId } = await req.json();
 
@@ -229,19 +232,11 @@ serve(async (req) => {
     // Fetch video context using Perplexity
     const videoContext = await fetchVideoContext(sanitizedTitle, videoId);
 
-    // Generate notes using Lovable AI (Gemini)
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `You are an expert educational content creator specializing in generating comprehensive, well-structured study notes. 
+    // Generate notes using Bytez AI
+    const generatedNotes = await callBytezAI([
+      {
+        role: 'user',
+        content: `You are an expert educational content creator specializing in generating comprehensive, well-structured study notes. 
 
 Your notes must be:
 - Accurate and based on the provided context
@@ -253,11 +248,9 @@ Format your response in clear markdown with:
 ## Key Concepts
 ## Important Points  
 ## Summary
-## Study Tips`
-          },
-          {
-            role: "user",
-            content: `Generate detailed, comprehensive study notes for an educational video.
+## Study Tips
+
+Generate detailed, comprehensive study notes for an educational video.
 
 **Video Title:** "${sanitizedTitle}"
 **Video ID:** ${videoId}
@@ -274,42 +267,14 @@ Create professional study notes that would help a student:
 4. Prepare for exams on this topic
 
 Make the notes comprehensive and educational.`
-          },
-        ],
-        temperature: 0.3,
-        max_tokens: 4000,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("Lovable AI error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add funds." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      
-      throw new Error(`Lovable AI error: ${response.status}`);
-    }
-
-    const aiData = await response.json();
-    const generatedNotes = aiData.choices?.[0]?.message?.content;
+      },
+    ]);
 
     if (!generatedNotes) {
-      console.error("AI response:", JSON.stringify(aiData));
       throw new Error("No content generated from AI");
     }
 
-    console.log("Notes generated successfully using Lovable AI");
+    console.log("Notes generated successfully using Bytez AI");
 
     // Check achievements after generating notes
     await serviceClient.rpc('check_achievements', { uid: user.id });
