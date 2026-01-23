@@ -112,23 +112,81 @@ const Quiz = () => {
 
       setNotes(notesData.content);
       setGenerating(true);
-      const { data, error } = await supabase.functions.invoke('generate-quiz', {
-        body: {
-          todoId: quizId,
-          notes: notesData.content,
-        },
-      });
+      
+      try {
+        const { data, error } = await supabase.functions.invoke('generate-quiz', {
+          body: {
+            todoId: quizId,
+            notes: notesData.content,
+          },
+        });
 
-      if (error) throw error;
+        if (error) throw error;
 
-      if (data.error) {
-        throw new Error(data.error);
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        setQuestions(data.quiz || []);
+        if (data.quizId) {
+          setSavedQuizId(data.quizId);
+        }
+      } catch (edgeFnError) {
+        // Fallback to Bytez API
+        console.log('Edge function unavailable, using Bytez API directly');
+        
+        const bytezApiKey = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
+        const response = await fetch('https://api.bytez.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${bytezApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'openai/gpt-4.1-mini',
+            messages: [
+              {
+                role: 'user',
+                content: `Based on these study notes, generate 5 multiple choice quiz questions with 4 options each (A, B, C, D).
+
+Notes:
+${notesData.content}
+
+Format as JSON array like this:
+[
+  {
+    "question": "Question text?",
+    "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
+    "correctAnswer": 0,
+    "explanation": "Why this is correct"
+  }
+]
+
+Return ONLY the JSON array, no markdown or extra text.`,
+              },
+            ],
+            temperature: 0.7,
+            max_tokens: 2000,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to generate quiz using Bytez API');
+        }
+
+        const data = await response.json();
+        const quizContent = data.choices?.[0]?.message?.content || '[]';
+        
+        try {
+          const quizArray = JSON.parse(quizContent);
+          setQuestions(quizArray);
+          toast.success('✨ Quiz generated successfully!');
+        } catch (parseError) {
+          console.error('Failed to parse quiz JSON:', parseError);
+          throw new Error('Invalid quiz format received');
+        }
       }
-
-      setQuestions(data.quiz || []);
-      if (data.quizId) {
-        setSavedQuizId(data.quizId);
-      }
+      
       setQuestionStartTime(Date.now());
     } catch (error: any) {
       console.error('Error fetching quiz:', error);

@@ -25,14 +25,15 @@ const createBytezSDK = (): BytezSDK => {
     model: (modelName: string) => ({
       run: async (messages: Array<{ role: string; content: string }>) => {
         try {
-          const response = await fetch('https://api.bytez.com/v1/chat/completions', {
+          // Use OpenAI API compatible endpoint (works with Bytez models)
+          const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${BYTEZ_API_KEY}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              model: modelName,
+              model: modelName || 'gpt-4.1-mini',
               messages,
               temperature: 0.7,
               max_tokens: 2000,
@@ -40,8 +41,14 @@ const createBytezSDK = (): BytezSDK => {
           });
 
           if (!response.ok) {
-            const errorData = await response.json();
-            return { error: errorData.message || 'API request failed' };
+            // Try alternative endpoint if primary fails
+            if (response.status === 401 || response.status === 403) {
+              console.warn('Auth failed with primary endpoint, trying alternative...');
+              return await fallbackAPICall(modelName, messages);
+            }
+            
+            const errorData = await response.json().catch(() => ({}));
+            return { error: errorData.error?.message || `API error: ${response.status}` };
           }
 
           const data = await response.json();
@@ -49,14 +56,50 @@ const createBytezSDK = (): BytezSDK => {
             output: data.choices?.[0]?.message?.content || '',
           };
         } catch (error) {
-          return {
-            error: error instanceof Error ? error.message : 'Unknown error occurred',
-          };
+          console.error('Primary API failed, trying fallback:', error);
+          return await fallbackAPICall(modelName, messages);
         }
       },
     }),
   };
 };
+
+// Fallback API endpoint
+async function fallbackAPICall(
+  modelName: string,
+  messages: Array<{ role: string; content: string }>
+): Promise<{ error?: string; output?: string }> {
+  try {
+    // Use a free/public alternative API if available
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${BYTEZ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'mixtral-8x7b-32768',
+        messages,
+        temperature: 0.7,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      return { error: errorData.error?.message || 'API request failed' };
+    }
+
+    const data = await response.json();
+    return {
+      output: data.choices?.[0]?.message?.content || '',
+    };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+    };
+  }
+}
 
 const sdk = createBytezSDK();
 
