@@ -97,7 +97,7 @@ const Dashboard = () => {
     setAdding(true);
     
     try {
-      // First, use AI to find the best video for this topic
+      // First, use YouTube API to find the best video for this topic
       toast.info('Finding the best video for your topic...', {
         icon: <Search className="h-4 w-4 text-primary animate-pulse" />,
       });
@@ -107,18 +107,19 @@ const Dashboard = () => {
       let subtasksData: any[] = [];
 
       try {
-        const { data: videoData, error: videoError } = await supabase.functions.invoke('find-video', {
-          body: { topic: newTodoTitle.trim() },
-        });
-
-        if (!videoError && videoData && !videoData.error) {
-          videoId = videoData.videoId;
-          videoDescription = `${videoData.title} by ${videoData.channel} - ${videoData.reason}`;
-          subtasksData = videoData.subtasks || [];
+        // Import YouTube search function
+        const { searchYouTubeVideos } = await import('../integrations/youtube/index');
+        
+        const videos = await searchYouTubeVideos(newTodoTitle.trim(), 5);
+        
+        if (videos && videos.length > 0) {
+          const topVideo = videos[0]; // Get the best matching video
+          videoId = topVideo.video_id;
+          videoDescription = `${topVideo.title} by ${topVideo.channel} - Engagement: ${topVideo.engagement_score}%`;
         }
       } catch (aiError) {
-        console.error('AI video search failed:', aiError);
-        // Continue without video if AI fails
+        console.error('YouTube video search failed:', aiError);
+        // Continue without video if search fails
       }
 
       const { data, error } = await supabase
@@ -296,6 +297,9 @@ const Dashboard = () => {
             <span className="text-sm text-muted-foreground hidden lg:block">
               Hi, {displayName}!
             </span>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/study-tools')} title="Study Tools">
+              <Search className="h-5 w-5" />
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate('/analysis')} title="Your Analysis">
               <TrendingUp className="h-5 w-5" />
             </Button>

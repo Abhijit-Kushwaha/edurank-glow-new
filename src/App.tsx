@@ -8,7 +8,9 @@ import { FilterProvider } from "@/contexts/FilterContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
+import StudyTools from "./pages/StudyTools";
 import VideoPlayer from "./pages/VideoPlayer";
 import Notes from "./pages/Notes";
 import Quiz from "./pages/Quiz";
@@ -42,11 +44,20 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
                   <Dashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/study-tools"
+              element={
+                <ProtectedRoute>
+                  <StudyTools />
                 </ProtectedRoute>
               }
             />

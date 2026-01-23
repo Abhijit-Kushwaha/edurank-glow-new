@@ -64,9 +64,9 @@ export const DailyChallengesCard = () => {
 
   if (loading) {
     return (
-      <Card className="bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border-orange-500/20">
+      <Card className="bg-secondary/10 border-secondary/20">
         <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-6 w-6 animate-spin text-orange-500" />
+          <Loader2 className="h-6 w-6 animate-spin text-secondary" />
         </CardContent>
       </Card>
     );
@@ -74,9 +74,9 @@ export const DailyChallengesCard = () => {
 
   if (challenges.length === 0) {
     return (
-      <Card className="bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border-orange-500/20">
+      <Card className="bg-secondary/10 border-secondary/20">
         <CardContent className="py-6 text-center">
-          <Flame className="h-8 w-8 text-orange-500 mx-auto mb-2" />
+          <Flame className="h-8 w-8 text-secondary mx-auto mb-2" />
           <p className="text-foreground font-medium">Daily Challenges</p>
           <p className="text-sm text-muted-foreground">Complete quizzes to start your challenges!</p>
         </CardContent>
@@ -89,13 +89,13 @@ export const DailyChallengesCard = () => {
   return (
     <Card className={`overflow-hidden transition-all ${
       allCompleted 
-        ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/10 border-green-500/30' 
-        : 'bg-gradient-to-br from-orange-500/10 to-yellow-500/10 border-orange-500/20'
+        ? 'bg-success/10 border-success/30' 
+        : 'bg-secondary/10 border-secondary/20'
     }`}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
-            <Flame className={`h-5 w-5 ${allCompleted ? 'text-green-500' : 'text-orange-500'}`} />
+            <Flame className={`h-5 w-5 ${allCompleted ? 'text-success' : 'text-secondary'}`} />
             Daily Challenges
           </CardTitle>
           <div className="flex items-center gap-2">
@@ -121,7 +121,7 @@ export const DailyChallengesCard = () => {
           </div>
           <Progress 
             value={(completedCount / totalCount) * 100} 
-            className={`h-2 ${allCompleted ? '[&>div]:bg-green-500' : ''}`}
+            className={`h-2 ${allCompleted ? '[&>div]:bg-success' : ''}`}
           />
         </div>
 
@@ -141,7 +141,7 @@ export const DailyChallengesCard = () => {
             animate={{ opacity: 1, y: 0 }}
             className="text-center py-2"
           >
-            <p className="text-sm font-medium text-green-500">🎉 All challenges completed!</p>
+            <p className="text-sm font-medium text-success">🎉 All challenges completed!</p>
             <p className="text-xs text-muted-foreground flex items-center justify-center gap-1 mt-1">
               <Snowflake className="h-3 w-3 text-cyan-500" />
               +1 Streak Protection earned!
@@ -174,13 +174,13 @@ const ChallengeItem = ({ challenge }: ChallengeItemProps) => {
       exit={{ opacity: 0, x: 20 }}
       className={`p-3 rounded-lg border transition-all ${
         challenge.is_completed
-          ? 'bg-green-500/10 border-green-500/30'
+          ? 'bg-success/10 border-success/30'
           : 'bg-background/50 border-border/50'
       }`}
     >
       <div className="flex items-start gap-3">
         <div className={`p-2 rounded-lg ${
-          challenge.is_completed ? 'bg-green-500/20 text-green-500' : 'bg-primary/10 text-primary'
+          challenge.is_completed ? 'bg-success/20 text-success' : 'bg-primary/10 text-primary'
         }`}>
           {challenge.is_completed ? <Trophy className="h-4 w-4" /> : icon}
         </div>
@@ -200,7 +200,7 @@ const ChallengeItem = ({ challenge }: ChallengeItemProps) => {
           <div className="flex items-center gap-2">
             <Progress 
               value={progress} 
-              className={`h-1.5 flex-1 ${challenge.is_completed ? '[&>div]:bg-green-500' : ''}`}
+              className={`h-1.5 flex-1 ${challenge.is_completed ? '[&>div]:bg-success' : ''}`}
             />
             <span className="text-xs text-muted-foreground whitespace-nowrap">
               {challenge.current_value}/{challenge.target_value}
@@ -210,7 +210,7 @@ const ChallengeItem = ({ challenge }: ChallengeItemProps) => {
 
         <div className="text-right">
           {challenge.is_completed ? (
-            <Badge className="bg-green-500/20 text-green-500 border-green-500/30">
+            <Badge className="bg-success/20 text-success border-success/30">
               +{challenge.xp_earned} XP
             </Badge>
           ) : (

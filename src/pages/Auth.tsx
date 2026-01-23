@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, ArrowRight, Sparkles, AtSign, Check, X } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Sparkles, AtSign, Check, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,10 @@ const Auth = () => {
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [isSendingReset, setIsSendingReset] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const navigate = useNavigate();
   const { login, signup, loginWithGoogle, user } = useAuth();
 
@@ -104,9 +108,58 @@ const Auth = () => {
         }
       }
     } catch (error) {
-      toast.error('Something went wrong');
+      const errorMessage = error instanceof Error ? error.message : 'Something went wrong';
+      console.error('Auth error:', error);
+      
+      // Check for network errors
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
+        toast.error('Network error. Please check your connection and try again.');
+      } else {
+        toast.error(errorMessage);
+      }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!forgotPasswordEmail.trim()) {
+      toast.error('Please enter your email address');
+      return;
+    }
+
+    setIsSendingReset(true);
+    try {
+      const redirectUrl = `${window.location.origin}/reset-password`;
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotPasswordEmail, {
+        redirectTo: redirectUrl,
+      });
+
+      if (error) {
+        console.error('Password reset error:', error);
+        toast.error('Failed to send reset email. Please check your email and try again.');
+      } else {
+        setResetEmailSent(true);
+        toast.success('Password reset email sent! Check your inbox.');
+        setTimeout(() => {
+          setIsForgotPasswordOpen(false);
+          setResetEmailSent(false);
+          setForgotPasswordEmail('');
+        }, 3000);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+      console.error('Password reset error:', error);
+      
+      // Check for network errors
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network')) {
+        toast.error('Network error. Please check your connection and try again.');
+      } else {
+        toast.error(errorMessage);
+      }
+    } finally {
+      setIsSendingReset(false);
     }
   };
 
@@ -257,6 +310,18 @@ const Auth = () => {
               />
             </div>
 
+            {isLogin && (
+              <div className="text-right">
+                <button
+                  type="button"
+                  onClick={() => setIsForgotPasswordOpen(true)}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
+
             <Button
               type="submit"
               variant="neon"
@@ -291,6 +356,79 @@ const Auth = () => {
               </button>
             </p>
           </div>
+
+          {/* Forgot Password Modal */}
+          {isForgotPasswordOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div className="bg-card rounded-lg p-6 max-w-sm w-full animate-slide-up">
+                <h2 className="text-lg font-bold mb-4">Reset Password</h2>
+                
+                {resetEmailSent ? (
+                  <div className="text-center py-4">
+                    <Check className="h-12 w-12 text-green-500 mx-auto mb-3" />
+                    <p className="text-sm text-gray-600 mb-4">
+                      Password reset email sent! Check your inbox for further instructions.
+                    </p>
+                    <Button
+                      onClick={() => {
+                        setIsForgotPasswordOpen(false);
+                        setResetEmailSent(false);
+                        setForgotPasswordEmail('');
+                      }}
+                      className="w-full"
+                    >
+                      Close
+                    </Button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Enter your email address and we'll send you a link to reset your password.
+                    </p>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        type="email"
+                        placeholder="Your email address"
+                        value={forgotPasswordEmail}
+                        onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                        className="pl-10"
+                        required
+                        autoFocus
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        type="submit"
+                        disabled={isSendingReset || !forgotPasswordEmail.trim()}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700"
+                      >
+                        {isSendingReset ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Sending...
+                          </>
+                        ) : (
+                          'Send Reset Email'
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setIsForgotPasswordOpen(false);
+                          setForgotPasswordEmail('');
+                        }}
+                        variant="outline"
+                        className="flex-1"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Features preview */}
