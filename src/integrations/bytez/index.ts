@@ -1,13 +1,74 @@
 /**
  * Bytez API Integration
  * Handles all AI requests for notes generation, video search, and quiz generation
+ * Browser-compatible implementation using direct API calls
  */
 
-import Bytez from 'bytez.js';
-
-// Initialize Bytez SDK with API key
+// Initialize Bytez API key
 const BYTEZ_API_KEY = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
-const sdk = new Bytez(BYTEZ_API_KEY);
+
+/**
+ * Direct API call to Bytez backend for models
+ */
+async function callBytezAPI(
+  model: string,
+  messages: Array<{ role: string; content: string }>
+): Promise<{ error?: string; output?: string }> {
+  try {
+    console.log('Calling Bytez API with model:', model);
+    
+    // Use the Bytez API endpoint that supports browser requests
+    const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${BYTEZ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: messages,
+        temperature: 0.7,
+        max_tokens: 2000,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Bytez API error:', errorData);
+      
+      if (response.status === 401) {
+        return { error: 'Invalid API key. Please check your credentials.' };
+      } else if (response.status === 429) {
+        return { error: 'Rate limit exceeded. Please try again later.' };
+      } else if (response.status === 402) {
+        return { error: 'Insufficient credits. Please add credits to your account.' };
+      }
+      
+      return { error: errorData.error?.message || `API error: ${response.status}` };
+    }
+
+    const data = await response.json();
+    const output = data.choices?.[0]?.message?.content || '';
+    
+    if (!output) {
+      return { error: 'No response from AI model' };
+    }
+
+    return { output };
+  } catch (error) {
+    console.error('Bytez API call failed:', error);
+    
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      return { 
+        error: 'Network error. Please check your internet connection and try again.' 
+      };
+    }
+    
+    return {
+      error: error instanceof Error ? error.message : 'Unknown error occurred',
+    };
+  }
+}
 
 /**
  * Generate study notes using GPT-4.1-mini
@@ -22,20 +83,14 @@ export async function generateNotesWithBytez(
     board?: string;
   }
 ): Promise<{ notes?: string; error?: string }> {
-  const model = sdk.model('openai/gpt-4.1-mini');
-
-  const languageNote = filters.language ? `Language: ${filters.language}` : '';
-  const classNote = filters.class ? `Class/Level: ${filters.class}` : '';
-  const boardNote = filters.board ? `Board: ${filters.board}` : '';
-
   const prompt = `Generate comprehensive study notes for an educational video.
 
 Video Title: "${videoTitle}"
 
-${classNote}
-${boardNote}
+${filters.class ? `Class/Level: ${filters.class}` : ''}
+${filters.board ? `Board: ${filters.board}` : ''}
 Subject: ${filters.subject || 'General'}
-${languageNote}
+${filters.language ? `Language: ${filters.language}` : ''}
 
 Content: ${videoContent}
 
@@ -49,7 +104,7 @@ Requirements:
 
 Please provide detailed, comprehensive study notes that help students understand and remember the topic.`;
 
-  const { error, output } = await model.run([
+  const { error, output } = await callBytezAPI('openai/gpt-4.1-mini', [
     {
       role: 'user',
       content: prompt,
@@ -64,7 +119,7 @@ Please provide detailed, comprehensive study notes that help students understand
 }
 
 /**
- * Generate quiz questions using Gemini-3-pro
+ * Generate quiz questions using Google Gemini
  */
 export async function generateQuizWithBytez(
   notes: string,
@@ -76,8 +131,6 @@ export async function generateQuizWithBytez(
   questionCount: number = 10,
   difficultyLevel: 'easy' | 'medium' | 'hard' = 'medium'
 ): Promise<{ questions?: any[]; error?: string }> {
-  const model = sdk.model('google/gemini-3-pro-preview');
-
   const classNote = filters.class ? `Class/Level: ${filters.class}` : '';
   const boardNote = filters.board ? `Board: ${filters.board}` : '';
 
@@ -113,7 +166,7 @@ Format your response as a valid JSON array with this structure:
 
 Return ONLY the JSON array, no markdown or extra text.`;
 
-  const { error, output } = await model.run([
+  const { error, output } = await callBytezAPI('google/gemini-2-flash', [
     {
       role: 'user',
       content: prompt,
@@ -134,7 +187,7 @@ Return ONLY the JSON array, no markdown or extra text.`;
 }
 
 /**
- * Find educational videos using Gemini-3-pro
+ * Find educational videos using Gemini
  * Validates that videos are NOT shorts (duration >= 10 minutes)
  */
 export async function findVideoWithBytez(
@@ -154,8 +207,6 @@ export async function findVideoWithBytez(
       error: 'YouTube Shorts are not supported for learning. Please search for full-length educational videos instead.',
     };
   }
-
-  const model = sdk.model('google/gemini-3-pro-preview');
 
   const classNote = filters.class ? `Class/Level: ${filters.class}` : '';
   const boardNote = filters.board ? `Board: ${filters.board}` : '';
@@ -202,7 +253,7 @@ Format as JSON array with structure:
 
 Return ONLY the JSON array, no markdown or extra text.`;
 
-  const { error, output } = await model.run([
+  const { error, output } = await callBytezAPI('google/gemini-2-flash', [
     {
       role: 'user',
       content: prompt,

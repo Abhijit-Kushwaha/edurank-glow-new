@@ -224,33 +224,24 @@ const VideoPlayer = () => {
     setShowNotes(true);
 
     try {
-      // Import and use Bytez directly
-      const Bytez = (await import('bytez.js')).default;
-      const bytezKey = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
-      const sdk = new Bytez(bytezKey);
-      const model = sdk.model('openai/gpt-4.1-mini');
+      // Import the Bytez integration module
+      const { generateNotesWithBytez } = await import('../integrations/bytez/index');
       
-      const { error, output } = await model.run([
+      const result = await generateNotesWithBytez(
+        todo.title || 'Study Material',
+        `Please generate comprehensive study notes for this content.`,
         {
-          role: 'user',
-          content: `Generate comprehensive study notes for the video: "${todo.title}". 
-          
-Create detailed, well-organized notes that:
-- Cover main concepts and key points
-- Include definitions and explanations
-- Provide examples where relevant
-- Use bullet points for clarity
-- Include important formulas or concepts if applicable
+          subject: todo.subject || 'General',
+          class: todo.class || undefined,
+          board: todo.board || undefined,
+        }
+      );
 
-Format the notes as a structured outline with clear sections.`,
-        },
-      ]);
-
-      if (error) {
-        throw new Error(error);
+      if (result.error) {
+        throw new Error(result.error);
       }
 
-      const noteLines = (output || '').split('\n').filter((n: string) => n.trim());
+      const noteLines = (result.notes || '').split('\n').filter((n: string) => n.trim());
       setNotes(noteLines);
       toast.success('✨ AI Notes generated successfully!');
     } catch (error: any) {

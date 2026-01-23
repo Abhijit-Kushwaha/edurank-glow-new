@@ -114,45 +114,27 @@ const Quiz = () => {
       setGenerating(true);
       
       try {
-        // Use Bytez SDK directly for quiz generation
-        const Bytez = (await import('bytez.js')).default;
-        const bytezKey = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
-        const sdk = new Bytez(bytezKey);
-        const model = sdk.model('google/gemini-3-pro-preview');
+        // Use Bytez integration for quiz generation
+        const { generateQuizWithBytez } = await import('../integrations/bytez/index');
         
-        const { error, output } = await model.run([
+        const result = await generateQuizWithBytez(
+          notesData.content,
           {
-            role: 'user',
-            content: `Based on these study notes, generate 5 multiple choice quiz questions with 4 options each (A, B, C, D).
-
-Notes:
-${notesData.content}
-
-Format as JSON array like this:
-[
-  {
-    "question": "Question text?",
-    "options": ["A) Option 1", "B) Option 2", "C) Option 3", "D) Option 4"],
-    "correctAnswer": 0,
-    "explanation": "Why this is correct"
-  }
-]
-
-Return ONLY the JSON array, no markdown or extra text.`,
+            subject: 'General',
           },
-        ]);
+          5,
+          'medium'
+        );
 
-        if (error) {
-          throw new Error(error);
+        if (result.error) {
+          throw new Error(result.error);
         }
 
-        try {
-          const quizArray = JSON.parse(output || '[]');
-          setQuestions(quizArray);
+        if (result.questions) {
+          setQuestions(result.questions);
           toast.success('✨ Quiz generated successfully!');
-        } catch (parseError) {
-          console.error('Failed to parse quiz JSON:', parseError);
-          throw new Error('Invalid quiz format received');
+        } else {
+          throw new Error('No questions generated');
         }
       } catch (error: any) {
         console.error('Error generating quiz:', error);
