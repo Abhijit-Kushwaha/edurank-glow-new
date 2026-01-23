@@ -3,105 +3,11 @@
  * Handles all AI requests for notes generation, video search, and quiz generation
  */
 
-// Note: In production, keep API keys in environment variables
+import Bytez from 'bytez.js';
+
+// Initialize Bytez SDK with API key
 const BYTEZ_API_KEY = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
-
-/**
- * Initialize Bytez SDK (placeholder - actual implementation would use bytez.js package)
- * For now, we'll create a wrapper around the Bytez API
- */
-
-export interface BytezModel {
-  run(messages: Array<{ role: string; content: string }>): Promise<{ error?: string; output?: string }>;
-}
-
-export interface BytezSDK {
-  model(modelName: string): BytezModel;
-}
-
-// Mock Bytez initialization - replace with actual bytez.js when installed
-const createBytezSDK = (): BytezSDK => {
-  return {
-    model: (modelName: string) => ({
-      run: async (messages: Array<{ role: string; content: string }>) => {
-        try {
-          // Use OpenAI API compatible endpoint (works with Bytez models)
-          const response = await fetch('https://api.openai.com/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${BYTEZ_API_KEY}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              model: modelName || 'gpt-4.1-mini',
-              messages,
-              temperature: 0.7,
-              max_tokens: 2000,
-            }),
-          });
-
-          if (!response.ok) {
-            // Try alternative endpoint if primary fails
-            if (response.status === 401 || response.status === 403) {
-              console.warn('Auth failed with primary endpoint, trying alternative...');
-              return await fallbackAPICall(modelName, messages);
-            }
-            
-            const errorData = await response.json().catch(() => ({}));
-            return { error: errorData.error?.message || `API error: ${response.status}` };
-          }
-
-          const data = await response.json();
-          return {
-            output: data.choices?.[0]?.message?.content || '',
-          };
-        } catch (error) {
-          console.error('Primary API failed, trying fallback:', error);
-          return await fallbackAPICall(modelName, messages);
-        }
-      },
-    }),
-  };
-};
-
-// Fallback API endpoint
-async function fallbackAPICall(
-  modelName: string,
-  messages: Array<{ role: string; content: string }>
-): Promise<{ error?: string; output?: string }> {
-  try {
-    // Use a free/public alternative API if available
-    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${BYTEZ_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'mixtral-8x7b-32768',
-        messages,
-        temperature: 0.7,
-        max_tokens: 2000,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return { error: errorData.error?.message || 'API request failed' };
-    }
-
-    const data = await response.json();
-    return {
-      output: data.choices?.[0]?.message?.content || '',
-    };
-  } catch (error) {
-    return {
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
-  }
-}
-
-const sdk = createBytezSDK();
+const sdk = new Bytez(BYTEZ_API_KEY);
 
 /**
  * Generate study notes using GPT-4.1-mini

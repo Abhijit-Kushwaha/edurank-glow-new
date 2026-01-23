@@ -224,31 +224,17 @@ const VideoPlayer = () => {
     setShowNotes(true);
 
     try {
-      // Try Supabase Edge Function first
-      const { data, error } = await supabase.functions.invoke('generate-notes', {
-        body: {
-          videoId: todo.video_id,
-          videoTitle: todo.title,
-          todoId: todoId,
-        },
-      }).catch(async (err) => {
-        // Fallback to direct API call using Bytez
-        console.log('Edge function unavailable, using Bytez API directly');
-        
-        const bytezApiKey = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
-        const response = await fetch('https://api.bytez.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${bytezApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'openai/gpt-4.1-mini',
-            messages: [
-              {
-                role: 'user',
-                content: `Generate comprehensive study notes for the video: "${todo.title}". 
-                
+      // Import and use Bytez directly
+      const Bytez = (await import('bytez.js')).default;
+      const bytezKey = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
+      const sdk = new Bytez(bytezKey);
+      const model = sdk.model('openai/gpt-4.1-mini');
+      
+      const { error, output } = await model.run([
+        {
+          role: 'user',
+          content: `Generate comprehensive study notes for the video: "${todo.title}". 
+          
 Create detailed, well-organized notes that:
 - Cover main concepts and key points
 - Include definitions and explanations
@@ -257,41 +243,19 @@ Create detailed, well-organized notes that:
 - Include important formulas or concepts if applicable
 
 Format the notes as a structured outline with clear sections.`,
-              },
-            ],
-            temperature: 0.7,
-            max_tokens: 2000,
-          }),
-        });
+        },
+      ]);
 
-        if (!response.ok) {
-          throw new Error('Failed to generate notes using Bytez API');
-        }
-
-        const data = await response.json();
-        return {
-          data: {
-            notes: data.choices?.[0]?.message?.content || 'Unable to generate notes',
-          },
-          error: null,
-        };
-      });
-
-      if (error) throw error;
-
-      if (data?.error) {
-        throw new Error(data.error);
+      if (error) {
+        throw new Error(error);
       }
 
-      const generatedNotes = data?.notes as string;
-      const noteLines = generatedNotes.split('\n').filter((n: string) => n.trim());
+      const noteLines = (output || '').split('\n').filter((n: string) => n.trim());
       setNotes(noteLines);
-
       toast.success('✨ AI Notes generated successfully!');
     } catch (error: any) {
       console.error('Error generating notes:', error);
       
-      // Provide helpful error messages
       const errorMsg = error?.message?.toLowerCase() || '';
       if (errorMsg.includes('429') || errorMsg.includes('rate limit')) {
         toast.error('Rate limit exceeded. Please try again later.');

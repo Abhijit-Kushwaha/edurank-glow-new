@@ -114,40 +114,16 @@ const Quiz = () => {
       setGenerating(true);
       
       try {
-        const { data, error } = await supabase.functions.invoke('generate-quiz', {
-          body: {
-            todoId: quizId,
-            notes: notesData.content,
-          },
-        });
-
-        if (error) throw error;
-
-        if (data.error) {
-          throw new Error(data.error);
-        }
-
-        setQuestions(data.quiz || []);
-        if (data.quizId) {
-          setSavedQuizId(data.quizId);
-        }
-      } catch (edgeFnError) {
-        // Fallback to Bytez API
-        console.log('Edge function unavailable, using Bytez API directly');
+        // Use Bytez SDK directly for quiz generation
+        const Bytez = (await import('bytez.js')).default;
+        const bytezKey = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
+        const sdk = new Bytez(bytezKey);
+        const model = sdk.model('google/gemini-3-pro-preview');
         
-        const bytezApiKey = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
-        const response = await fetch('https://api.bytez.com/v1/chat/completions', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${bytezApiKey}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            model: 'openai/gpt-4.1-mini',
-            messages: [
-              {
-                role: 'user',
-                content: `Based on these study notes, generate 5 multiple choice quiz questions with 4 options each (A, B, C, D).
+        const { error, output } = await model.run([
+          {
+            role: 'user',
+            content: `Based on these study notes, generate 5 multiple choice quiz questions with 4 options each (A, B, C, D).
 
 Notes:
 ${notesData.content}
@@ -163,27 +139,31 @@ Format as JSON array like this:
 ]
 
 Return ONLY the JSON array, no markdown or extra text.`,
-              },
-            ],
-            temperature: 0.7,
-            max_tokens: 2000,
-          }),
-        });
+          },
+        ]);
 
-        if (!response.ok) {
-          throw new Error('Failed to generate quiz using Bytez API');
+        if (error) {
+          throw new Error(error);
         }
 
-        const data = await response.json();
-        const quizContent = data.choices?.[0]?.message?.content || '[]';
-        
         try {
-          const quizArray = JSON.parse(quizContent);
+          const quizArray = JSON.parse(output || '[]');
           setQuestions(quizArray);
           toast.success('✨ Quiz generated successfully!');
         } catch (parseError) {
           console.error('Failed to parse quiz JSON:', parseError);
           throw new Error('Invalid quiz format received');
+        }
+      } catch (error: any) {
+        console.error('Error generating quiz:', error);
+        
+        const errorMsg = error?.message?.toLowerCase() || '';
+        if (errorMsg.includes('429') || errorMsg.includes('rate limit')) {
+          toast.error('Rate limit exceeded. Please try again later.');
+        } else if (errorMsg.includes('402') || errorMsg.includes('credit')) {
+          toast.error('Please add credits to continue using AI features.');
+        } else {
+          toast.error('Failed to generate quiz');
         }
       }
       
