@@ -134,7 +134,7 @@ async function logSearchRequest(supabase: any, userId: string, queryHash: string
     });
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   const origin = req.headers.get('origin');
   const corsHeaders = getCORSHeaders(origin);
 
