@@ -44,6 +44,21 @@ interface VideoResult {
   embed_url: string;
 }
 
+interface DbVideo {
+  video_id: string;
+  title: string;
+  thumbnail_url: string;
+  duration_seconds: number;
+  difficulty: string;
+  embed_url: string;
+  topic?: string;
+  subject?: string;
+  class_grade?: string;
+  language?: string;
+  duration_category?: string;
+  tags?: string[];
+}
+
 function validateInput(data: any): { isValid: boolean; errors: string[]; normalized: SearchRequest } {
   const errors: string[] = [];
   const normalized: Partial<SearchRequest> = {};
@@ -255,8 +270,8 @@ serve(async (req: Request) => {
     }
 
     // Calculate relevance scores and filter
-    const scoredVideos = videos
-      .map((video: any) => {
+    const scoredVideos = (videos as DbVideo[])
+      .map((video) => {
         let score = 0;
 
         // Topic match (title or topic field)
