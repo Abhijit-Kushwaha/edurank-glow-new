@@ -67,6 +67,7 @@ function sanitizeInput(input: string, maxLength: number): { isValid: boolean; sa
   for (const charCode of controlChars) {
     sanitized = sanitized.replace(new RegExp(String.fromCharCode(charCode), 'g'), '');
   }
+  sanitized = sanitized
     .replace(/\\/g, '')
     .trim();
 
