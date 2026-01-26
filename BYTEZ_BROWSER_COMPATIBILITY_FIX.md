@@ -1,7 +1,7 @@
-# Bytez Browser Compatibility Fix
+# AI Service Browser Compatibility Fix
 
 ## Problem
-The application was showing a "Network error" message when trying to generate AI notes, even though the user had internet connectivity. The root cause was that `bytez.js` is a Node.js library that depends on Node.js-specific modules (like `stream`), which are not available in browser environments.
+The application was showing a "Network error" message when trying to generate AI notes, even though the user had internet connectivity. The root cause was that the AI SDK is a Node.js library that depends on Node.js-specific modules (like `stream`), which are not available in browser environments.
 
 ### Error Evidence
 Vite warning during build:
@@ -13,7 +13,7 @@ imported by "/workspaces/edurank-glow-new/node_modules/bytez.js/dist/index.mjs".
 ### User Impact
 - ❌ "Generate AI Notes" button failing with network error
 - ❌ Quiz generation blocked (depends on notes)
-- ❌ Video search with Bytez API not working
+- ❌ Video search with AI API not working
 
 ## Solution
 

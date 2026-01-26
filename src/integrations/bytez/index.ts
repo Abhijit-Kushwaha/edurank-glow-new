@@ -1,31 +1,31 @@
 /**
- * Bytez API Integration
+ * AI Service Integration
  * Handles all AI requests for notes generation, video search, and quiz generation
- * Browser-compatible implementation using Bytez.js SDK
+ * Browser-compatible implementation using AI SDK
  */
 
 import Bytez from "bytez.js";
 
-// Initialize Bytez SDK
+// Initialize AI SDK
 const BYTEZ_API_KEY = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
 const sdk = new Bytez(BYTEZ_API_KEY);
 
 /**
- * Direct API call to Bytez backend for models (fallback method)
+ * Direct API call to AI backend for models (fallback method)
  */
 async function callBytezAPI(
   model: string,
   messages: Array<{ role: string; content: string }>
 ): Promise<{ error?: string; output?: string }> {
   try {
-    console.log('Calling Bytez API with model:', model);
+    console.log('Calling AI API with model:', model);
 
-    // Try using Bytez.js SDK first
+    // Try using AI SDK first
     const modelInstance = sdk.model(model);
     const { error, output } = await modelInstance.run(messages);
 
     if (error) {
-      console.warn('Bytez SDK failed, falling back to direct API:', error);
+      console.warn('AI SDK failed, falling back to direct API:', error);
       throw new Error(error);
     }
 
@@ -51,7 +51,7 @@ async function callBytezAPI(
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        console.error('Bytez API error:', errorData);
+        console.error('AI API error:', errorData);
 
         if (response.status === 401) {
           return { error: 'Invalid API key. Please check your credentials.' };
@@ -73,7 +73,7 @@ async function callBytezAPI(
 
       return { output };
     } catch (apiError) {
-      console.error('Bytez API call failed:', apiError);
+      console.error('AI API call failed:', apiError);
 
       if (apiError instanceof TypeError && apiError.message.includes('fetch')) {
         return {
@@ -137,7 +137,7 @@ Please provide detailed, comprehensive study notes that help students understand
 }
 
 /**
- * Generate quiz questions using Google Gemini
+ * Generate quiz questions using AI model
  */
 export async function generateQuizWithBytez(
   notes: string,

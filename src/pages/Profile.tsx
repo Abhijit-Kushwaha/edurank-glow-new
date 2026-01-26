@@ -17,7 +17,7 @@ interface UserCredits {
   last_reset_at: string;
 }
 
-const TOTAL_MONTHLY_CREDITS = 50;
+const TOTAL_WEEKLY_CREDITS = 200;
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -97,7 +97,7 @@ const Profile = () => {
 
   const fetchCredits = async () => {
     try {
-      // Use the check_and_reset_credits function which handles monthly reset
+      // Use the check_and_reset_credits function which handles weekly reset
       const { data, error } = await supabase.rpc('check_and_reset_credits', { 
         uid: user?.id 
       });
@@ -132,16 +132,16 @@ const Profile = () => {
     }
   };
 
-  const usedPercent = TOTAL_MONTHLY_CREDITS > 0 
-    ? ((credits?.credits_used || 0) / TOTAL_MONTHLY_CREDITS) * 100 
+  const usedPercent = TOTAL_WEEKLY_CREDITS > 0 
+    ? ((credits?.credits_used || 0) / TOTAL_WEEKLY_CREDITS) * 100 
     : 0;
 
-  // Calculate next reset date (1 month from last reset)
+  // Calculate next reset date (1 week from last reset)
   const getNextResetDate = () => {
     if (!credits?.last_reset_at) return null;
     const lastReset = new Date(credits.last_reset_at);
     const nextReset = new Date(lastReset);
-    nextReset.setMonth(nextReset.getMonth() + 1);
+    nextReset.setDate(nextReset.getDate() + 7);
     return nextReset;
   };
 
@@ -227,7 +227,7 @@ const Profile = () => {
               <Coins className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h2 className="font-semibold">Monthly Credits</h2>
+              <h2 className="font-semibold">Weekly Credits</h2>
               <p className="text-sm text-muted-foreground">Resets every month</p>
             </div>
           </div>
@@ -254,8 +254,8 @@ const Profile = () => {
                 <p className="text-sm text-muted-foreground">Credits Used</p>
               </div>
               <div className="text-center">
-                <p className="text-2xl font-bold">{TOTAL_MONTHLY_CREDITS}</p>
-                <p className="text-sm text-muted-foreground">Monthly Limit</p>
+                <p className="text-2xl font-bold">{TOTAL_WEEKLY_CREDITS}</p>
+                <p className="text-sm text-muted-foreground">Weekly Limit</p>
               </div>
             </div>
 

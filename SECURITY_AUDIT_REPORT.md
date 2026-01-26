@@ -109,7 +109,7 @@ Then remove manual JWT validation code from functions and let Supabase handle it
 **Location:** `supabase/functions/find-video/index.ts` (line 180+)  
 **Issue:**
 ```typescript
-const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?...&key=${apiKey}`;
+const detailsUrl = `https://video-platform-api.example.com/videos?...&key=${apiKey}`;
 // This URL with API key might be logged or exposed in errors
 ```
 
@@ -128,7 +128,7 @@ async function searchYouTube(
 ): Promise<YouTubeVideo[]> {
   // Use POST with body instead of query params
   const searchResponse = await fetch(
-    'https://www.googleapis.com/youtube/v3/search',
+    'https://video-platform-api.example.com/search',
     {
       method: 'POST',
       headers: {
@@ -420,7 +420,7 @@ const { data, error } = await supabase.functions.invoke('generate-notes', {
 **Requirement:** Age-appropriate multi-factor authentication  
 **Current:** Only email/password  
 **Missing:**
-- TOTP (Google Authenticator, Authy)
+- TOTP (Authenticator App, Authy)
 - SMS verification
 - Backup codes
 - Security keys support
@@ -459,7 +459,7 @@ async function validateGeneratedContent(content: string): Promise<{
   safe: boolean;
   issues: string[];
 }> {
-  // Use Google's Perspective API or similar
+  // Use content moderation API or similar
   // Check for:
   // - Harmful language
   // - Age-appropriate content

@@ -1,8 +1,8 @@
-# 🎥 YouTube Video Search - Now Working! ✅
+# 🎥 Video Search - Now Working! ✅
 
 ## What Was Fixed
 **Problem:** "AI is not finding videos from YT"  
-**Solution:** Integrated YouTube Data API v3 for real-time educational video search
+**Solution:** Integrated video platform API for real-time educational video search
 
 ---
 
@@ -13,7 +13,7 @@
 2. Click **"Search Videos"** tab
 3. Type any educational topic: `"photosynthesis"`, `"python coding"`, `"calculus derivatives"`
 4. Click Search 🔍
-5. See 8-10 YouTube videos with:
+5. See 8-10 videos with:
    - Video title
    - Channel name
    - Duration
