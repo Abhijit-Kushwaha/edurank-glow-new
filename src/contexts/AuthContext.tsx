@@ -24,7 +24,6 @@ interface AuthContextType {
   signup: (email: string, password: string, name: string, username: string) => Promise<{ error?: string }>;
   sendOtpSignup: (identifier: string, isPhone: boolean) => Promise<{ error?: string }>;
   verifyOtpSignup: (identifier: string, otp: string, isPhone: boolean, name: string, username: string) => Promise<{ error?: string }>;
-  loginWithGoogle: () => Promise<{ error?: string }>;
   logout: () => Promise<void>;
 }
 
@@ -163,27 +162,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const loginWithGoogle = async (): Promise<{ error?: string }> => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/dashboard`,
-        },
-      });
-
-      if (error) {
-        console.error('Google login error:', error);
-        return { error: error.message };
-      }
-
-      return {};
-    } catch (error) {
-      console.error('Google login error:', error);
-      return { error: 'Google login failed. Please try again.' };
-    }
-  };
-
   const logout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
@@ -262,7 +240,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, isLoading, login, signup, sendOtpSignup, verifyOtpSignup, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, session, profile, isLoading, login, signup, sendOtpSignup, verifyOtpSignup, logout }}>
       {children}
     </AuthContext.Provider>
   );

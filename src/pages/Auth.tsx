@@ -18,7 +18,6 @@ const Auth = () => {
   const [isUsernameAvailable, setIsUsernameAvailable] = useState<boolean | null>(null);
   const [isCheckingUsername, setIsCheckingUsername] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [isSendingReset, setIsSendingReset] = useState(false);
@@ -32,7 +31,7 @@ const Auth = () => {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [resendCooldown, setResendCooldown] = useState(0);
   const navigate = useNavigate();
-  const { login, signup, sendOtpSignup, verifyOtpSignup, loginWithGoogle, user } = useAuth();
+  const { login, signup, sendOtpSignup, verifyOtpSignup, user } = useAuth();
 
   // Redirect if already logged in
   useEffect(() => {
