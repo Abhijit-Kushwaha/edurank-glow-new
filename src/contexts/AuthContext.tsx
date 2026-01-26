@@ -178,6 +178,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       const { error } = await supabase.auth.signInWithOtp({
         email: isPhone ? undefined : identifier,
         phone: isPhone ? identifier : undefined,
+        options: {
+          shouldCreateUser: true,
+          type: isPhone ? 'sms' : 'email', // Send OTP code for email instead of magic link
+          data: {
+            name: '', // Will be set during verification
+            username: '', // Will be set during verification
+          },
+        },
       });
 
       if (error) {
@@ -199,7 +207,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (isPhone) {
         ({ data, error } = await supabase.auth.verifyOtp({ phone: identifier, token: otp, type: 'sms' }));
       } else {
-        ({ data, error } = await supabase.auth.verifyOtp({ email: identifier, token: otp, type: 'signup' }));
+        ({ data, error } = await supabase.auth.verifyOtp({ email: identifier, token: otp, type: 'email' }));
       }
 
       if (error) {
