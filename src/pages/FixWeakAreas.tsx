@@ -108,7 +108,7 @@ const FixWeakAreas = () => {
 
       const todoIds = [...new Set(analysisData?.map(a => a.todo_id) || [])];
       
-      let notesMap = new Map<string, string>();
+      const notesMap = new Map<string, string>();
       if (todoIds.length > 0) {
         const { data: notesData } = await supabase
           .from('notes')
