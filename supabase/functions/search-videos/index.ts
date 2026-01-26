@@ -314,7 +314,7 @@ serve(async (req: Request) => {
         return { ...video, score };
       })
       .filter(video => video.score > 0) // Only include videos with some relevance
-      .sort((a, b) => b.score - a.score)
+      .sort((a: any, b: any) => b.score - a.score)
       .slice(0, normalized.limit);
 
     // Format response
