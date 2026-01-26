@@ -37,8 +37,8 @@ const FORBIDDEN_PATTERNS = [
   /disregard\s+(all\s+)?previous/i,
   /forget\s+(all\s+)?previous/i,
   /\[\s*INST\s*\]/i,
-  /\<\s*\|\s*im_start\s*\|\s*\>/i,
-  /\<\s*\|\s*im_end\s*\|\s*\>/i,
+  /<\s*\|\s*im_start\s*\|\s*>/i,
+  /<\s*\|\s*im_end\s*\|\s*>/i,
   /\{\{\s*system/i,
   /override\s+instructions/i,
 ];
