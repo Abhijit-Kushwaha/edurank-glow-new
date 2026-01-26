@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import Logo from '@/components/Logo';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAchievements } from '@/hooks/useAchievements';
 import SubtasksSidebar from '@/components/SubtasksSidebar';
 
 interface Todo {
@@ -46,6 +47,7 @@ const VideoPlayer = () => {
   const { todoId } = useParams();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const { trackNotesGenerated } = useAchievements();
   const [player, setPlayer] = useState<YouTubePlayer | null>(null);
   const [progress, setProgress] = useState(0);
   const [showNotesButton, setShowNotesButton] = useState(false);
@@ -244,6 +246,9 @@ const VideoPlayer = () => {
       const noteLines = (result.notes || '').split('\n').filter((n: string) => n.trim());
       setNotes(noteLines);
       toast.success('✨ AI Notes generated successfully!');
+
+      // Track achievement
+      trackNotesGenerated();
     } catch (error: any) {
       console.error('Error generating notes:', error);
       

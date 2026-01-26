@@ -22,6 +22,8 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<{ error?: string }>;
   signup: (email: string, password: string, name: string, username: string) => Promise<{ error?: string }>;
+  sendOtpSignup: (identifier: string, isPhone: boolean) => Promise<{ error?: string }>;
+  verifyOtpSignup: (identifier: string, otp: string, isPhone: boolean, name: string, username: string) => Promise<{ error?: string }>;
   loginWithGoogle: () => Promise<{ error?: string }>;
   logout: () => Promise<void>;
 }
@@ -192,8 +194,75 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setProfile(null);
   };
 
+  // Send OTP for signup (email or phone)
+  const sendOtpSignup = async (identifier: string, isPhone: boolean): Promise<{ error?: string }> => {
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: isPhone ? undefined : identifier,
+        phone: isPhone ? identifier : undefined,
+      });
+
+      if (error) {
+        console.error('Send OTP error:', error);
+        return { error: error.message };
+      }
+
+      return {};
+    } catch (error) {
+      console.error('Send OTP error:', error);
+      return { error: 'Failed to send OTP. Please try again.' };
+    }
+  };
+
+  // Verify OTP for signup and create/update profile
+  const verifyOtpSignup = async (identifier: string, otp: string, isPhone: boolean, name: string, username: string): Promise<{ error?: string }> => {
+    try {
+      let data, error;
+      if (isPhone) {
+        ({ data, error } = await supabase.auth.verifyOtp({ phone: identifier, token: otp, type: 'sms' }));
+      } else {
+        ({ data, error } = await supabase.auth.verifyOtp({ email: identifier, token: otp, type: 'signup' }));
+      }
+
+      if (error) {
+        console.error('Verify OTP error:', error);
+        if (error.message.includes('Invalid token')) {
+          return { error: 'Invalid OTP. Please check and try again.' };
+        }
+        if (error.message.includes('expired')) {
+          return { error: 'OTP has expired. Please request a new one.' };
+        }
+        if (error.message.includes('rate limit')) {
+          return { error: 'Too many attempts. Please wait before trying again.' };
+        }
+        return { error: error.message };
+      }
+
+      // If verification successful and user is created, update profile with name and username
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ 
+            name: username,
+            full_name: name 
+          })
+          .eq('user_id', data.user.id);
+
+        if (profileError) {
+          console.error('Profile update error:', profileError);
+          // Don't fail verification if profile update fails, but log it
+        }
+      }
+
+      return {};
+    } catch (error) {
+      console.error('Verify OTP error:', error);
+      return { error: 'OTP verification failed. Please try again.' };
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, profile, isLoading, login, signup, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, session, profile, isLoading, login, signup, sendOtpSignup, verifyOtpSignup, loginWithGoogle, logout }}>
       {children}
     </AuthContext.Provider>
   );

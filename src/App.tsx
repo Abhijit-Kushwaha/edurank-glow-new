@@ -21,6 +21,9 @@ import About from "./pages/About";
 import NotFound from "./pages/NotFound";
 import FixWeakAreas from "./pages/FixWeakAreas";
 import Analysis from "./pages/Analysis";
+import Friends from "./pages/Friends";
+import QuizRoom from "./pages/QuizRoom";
+import Achievements from "./pages/Achievements";
 
 const queryClient = new QueryClient();
 
@@ -122,6 +125,30 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Analysis />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/friends"
+              element={
+                <ProtectedRoute>
+                  <Friends />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/quiz-room"
+              element={
+                <ProtectedRoute>
+                  <QuizRoom />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/achievements"
+              element={
+                <ProtectedRoute>
+                  <Achievements />
                 </ProtectedRoute>
               }
             />

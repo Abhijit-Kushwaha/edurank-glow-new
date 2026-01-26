@@ -1,7 +1,7 @@
 import { 
   Baby, Brain, GraduationCap, Crown, Flame, Medal, Star, NotebookPen, BookOpen, Trophy, 
   Lock, TrendingUp, RefreshCw, Zap, Timer, Bolt, Shield, Calendar, Target, Award, Globe,
-  Sparkles, Crosshair, CheckCircle, Swords, PlayCircle, Infinity, Gem, Flag, Compass, type LucideIcon
+  Sparkles, Crosshair, CheckCircle, Swords, PlayCircle, Infinity as InfinityIcon, Gem, Flag, Compass, type LucideIcon
 } from 'lucide-react';
 
 // Map of icon names to components
@@ -32,7 +32,7 @@ export const iconMap: Record<string, LucideIcon> = {
   'check-circle': CheckCircle,
   'swords': Swords,
   'play-circle': PlayCircle,
-  'infinity': Infinity,
+  'infinity': InfinityIcon,
   'gem': Gem,
   'flag': Flag,
   'compass': Compass,

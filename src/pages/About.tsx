@@ -95,6 +95,20 @@ const About = () => {
           </div>
         </section>
       </main>
+
+      {/* Footer */}
+      <footer className="container mx-auto px-4 py-6 text-center text-muted-foreground text-sm border-t border-border/50 mt-8">
+        <div className="flex justify-center gap-4">
+          <a
+            href="https://forms.office.com/r/w5GW0HijNj"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            Give Feedback
+          </a>
+        </div>
+      </footer>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { Card } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -9,6 +9,14 @@ import { useAuth } from '@/contexts/AuthContext';
 interface TopicPerformance {
   topic_id: string;
   topic_name: string;
+  weakness_score: number;
+  strength_status: string;
+  last_updated: string;
+}
+
+interface DatabaseTopicPerformance {
+  topic_id: string;
+  topics?: { name: string } | null;
   weakness_score: number;
   strength_status: string;
   last_updated: string;
@@ -31,9 +39,9 @@ const ImprovementChart = () => {
     if (user) {
       fetchPerformanceData();
     }
-  }, [user]);
+  }, [user, fetchPerformanceData]);
 
-  const fetchPerformanceData = async () => {
+  const fetchPerformanceData = useCallback(async () => {
     try {
       // Fetch current topic performance with topic names
       const { data: perfData, error: perfError } = await supabase
@@ -50,7 +58,7 @@ const ImprovementChart = () => {
 
       if (perfError) throw perfError;
 
-      const formattedPerf: TopicPerformance[] = (perfData || []).map((p: any) => ({
+      const formattedPerf: TopicPerformance[] = (perfData || []).map((p: DatabaseTopicPerformance) => ({
         topic_id: p.topic_id,
         topic_name: p.topics?.name || 'Unknown Topic',
         weakness_score: p.weakness_score,
@@ -86,7 +94,7 @@ const ImprovementChart = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
 
   // Get unique topic names for filter
   const topicNames = [...new Set(performances.map((p) => p.topic_name))];

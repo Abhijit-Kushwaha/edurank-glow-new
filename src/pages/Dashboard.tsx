@@ -15,6 +15,8 @@ import {
   Trash2,
   Search,
   User,
+  Users,
+  Award,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -41,6 +43,19 @@ interface Todo {
   video_id: string | null;
   video_url: string | null;
   description: string | null;
+}
+
+interface SubtaskVideo {
+  videoId: string;
+  title: string;
+  channel: string;
+  engagementScore: number;
+  reason: string;
+}
+
+interface SubtaskData {
+  title: string;
+  videos?: SubtaskVideo[];
 }
 
 const Dashboard = () => {
@@ -104,7 +119,7 @@ const Dashboard = () => {
 
       let videoId: string | null = null;
       let videoDescription: string | null = null;
-      let subtasksData: any[] = [];
+      const subtasksData: SubtaskData[] = [];
 
       try {
         // Import YouTube search function
@@ -159,7 +174,7 @@ const Dashboard = () => {
 
           // Insert videos for this subtask
           if (subtaskRow && subtask.videos?.length > 0) {
-            const videosToInsert = subtask.videos.map((video: any, idx: number) => ({
+            const videosToInsert = subtask.videos.map((video: SubtaskVideo, idx: number) => ({
               subtask_id: subtaskRow.id,
               user_id: user.id,
               video_id: video.videoId,
@@ -302,6 +317,12 @@ const Dashboard = () => {
             </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate('/analysis')} title="Your Analysis">
               <TrendingUp className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/friends')} title="Friends">
+              <Users className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => navigate('/achievements')} title="Achievements">
+              <Award className="h-5 w-5" />
             </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate('/leaderboard')} title="Leaderboard">
               <Trophy className="h-5 w-5" />

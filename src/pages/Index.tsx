@@ -120,12 +120,22 @@ const Index = () => {
       {/* Footer */}
       <footer className="relative z-10 container mx-auto px-4 py-8 text-center text-muted-foreground text-sm">
         <p className="mb-2">© 2024 EduRank. All rights reserved.</p>
-        <button
-          onClick={() => navigate('/about')}
-          className="text-primary hover:underline"
-        >
-          About Us
-        </button>
+        <div className="flex justify-center gap-4">
+          <button
+            onClick={() => navigate('/about')}
+            className="text-primary hover:underline"
+          >
+            About Us
+          </button>
+          <a
+            href="https://forms.office.com/r/w5GW0HijNj"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:underline"
+          >
+            Give Feedback
+          </a>
+        </div>
       </footer>
     </div>
   );

@@ -22,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import Logo from '@/components/Logo';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAchievements } from '@/hooks/useAchievements';
 
 interface Question {
   id: number;
@@ -46,6 +47,7 @@ interface WeakTopic {
 const FixWeakAreas = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { trackWeakTopicImprovement, trackTopicStudied } = useAchievements();
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -274,6 +276,25 @@ const FixWeakAreas = () => {
           .from('recommendation_queue')
           .update({ is_completed: true })
           .in('topic_id', completedTopicIds);
+
+        // Calculate and track improvements
+        for (const topicId of completedTopicIds) {
+          const score = topicScores[topicId];
+          const accuracy = score.total > 0 ? (score.correct / score.total) * 100 : 0;
+          
+          // Find the original weakness score for this topic
+          const weakTopic = weakTopics.find(wt => wt.topicId === topicId);
+          if (weakTopic) {
+            const improvement = weakTopic.weaknessScore - accuracy; // Lower weakness score is better
+            if (improvement > 0) {
+              trackWeakTopicImprovement(improvement);
+            }
+          }
+        }
+
+        // Track topic studied achievements
+        trackTopicStudied();
+        
       } catch (error) {
         console.error('Error updating recommendations:', error);
       }

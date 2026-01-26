@@ -23,6 +23,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import Logo from '@/components/Logo';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAchievements } from '@/hooks/useAchievements';
 
 interface Question {
   id: number;
@@ -45,6 +46,7 @@ const Quiz = () => {
   const { quizId } = useParams();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const { trackQuizCompleted, trackCorrectAnswer, trackStreakUpdate, trackLeaderboardEntry } = useAchievements();
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -273,6 +275,26 @@ const Quiz = () => {
         total_questions: questions.length,
         answers: answers,
       });
+
+      // Track achievements
+      trackQuizCompleted(percentage);
+      if (score > 0) {
+        trackCorrectAnswer();
+      }
+
+      // Fetch current streak for achievement tracking
+      const { data: streakData } = await supabase
+        .from('leaderboard_stats')
+        .select('current_streak')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (streakData?.current_streak) {
+        trackStreakUpdate(streakData.current_streak);
+      }
+
+      // Track leaderboard entry achievement
+      trackLeaderboardEntry();
 
       // Analyze weakness after saving results
       if (videoId && savedQuizId) {

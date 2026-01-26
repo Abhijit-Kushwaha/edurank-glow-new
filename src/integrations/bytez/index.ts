@@ -1,14 +1,17 @@
 /**
  * Bytez API Integration
  * Handles all AI requests for notes generation, video search, and quiz generation
- * Browser-compatible implementation using direct API calls
+ * Browser-compatible implementation using Bytez.js SDK
  */
 
-// Initialize Bytez API key
+import Bytez from "bytez.js";
+
+// Initialize Bytez SDK
 const BYTEZ_API_KEY = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
+const sdk = new Bytez(BYTEZ_API_KEY);
 
 /**
- * Direct API call to Bytez backend for models
+ * Direct API call to Bytez backend for models (fallback method)
  */
 async function callBytezAPI(
   model: string,
@@ -16,57 +19,72 @@ async function callBytezAPI(
 ): Promise<{ error?: string; output?: string }> {
   try {
     console.log('Calling Bytez API with model:', model);
-    
-    // Use the Bytez API endpoint that supports browser requests
-    const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${BYTEZ_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 2000,
-      }),
-    });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Bytez API error:', errorData);
-      
-      if (response.status === 401) {
-        return { error: 'Invalid API key. Please check your credentials.' };
-      } else if (response.status === 429) {
-        return { error: 'Rate limit exceeded. Please try again later.' };
-      } else if (response.status === 402) {
-        return { error: 'Insufficient credits. Please add credits to your account.' };
-      }
-      
-      return { error: errorData.error?.message || `API error: ${response.status}` };
-    }
+    // Try using Bytez.js SDK first
+    const modelInstance = sdk.model(model);
+    const { error, output } = await modelInstance.run(messages);
 
-    const data = await response.json();
-    const output = data.choices?.[0]?.message?.content || '';
-    
-    if (!output) {
-      return { error: 'No response from AI model' };
+    if (error) {
+      console.warn('Bytez SDK failed, falling back to direct API:', error);
+      throw new Error(error);
     }
 
     return { output };
-  } catch (error) {
-    console.error('Bytez API call failed:', error);
-    
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      return { 
-        error: 'Network error. Please check your internet connection and try again.' 
+  } catch (sdkError) {
+    console.warn('Bytez SDK failed, using direct API call:', sdkError);
+
+    // Fallback to direct API call
+    try {
+      const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${BYTEZ_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: messages,
+          temperature: 0.7,
+          max_tokens: 2000,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Bytez API error:', errorData);
+
+        if (response.status === 401) {
+          return { error: 'Invalid API key. Please check your credentials.' };
+        } else if (response.status === 429) {
+          return { error: 'Rate limit exceeded. Please try again later.' };
+        } else if (response.status === 402) {
+          return { error: 'Insufficient credits. Please add credits to your account.' };
+        }
+
+        return { error: errorData.error?.message || `API error: ${response.status}` };
+      }
+
+      const data = await response.json();
+      const output = data.choices?.[0]?.message?.content || '';
+
+      if (!output) {
+        return { error: 'No response from AI model' };
+      }
+
+      return { output };
+    } catch (apiError) {
+      console.error('Bytez API call failed:', apiError);
+
+      if (apiError instanceof TypeError && apiError.message.includes('fetch')) {
+        return {
+          error: 'Network error. Please check your internet connection and try again.'
+        };
+      }
+
+      return {
+        error: apiError instanceof Error ? apiError.message : 'Unknown error occurred',
       };
     }
-    
-    return {
-      error: error instanceof Error ? error.message : 'Unknown error occurred',
-    };
   }
 }
 
@@ -166,7 +184,7 @@ Format your response as a valid JSON array with this structure:
 
 Return ONLY the JSON array, no markdown or extra text.`;
 
-  const { error, output } = await callBytezAPI('google/gemini-2-flash', [
+  const { error, output } = await callBytezAPI('openai/gpt-4.1-mini', [
     {
       role: 'user',
       content: prompt,
@@ -253,7 +271,7 @@ Format as JSON array with structure:
 
 Return ONLY the JSON array, no markdown or extra text.`;
 
-  const { error, output } = await callBytezAPI('google/gemini-2-flash', [
+  const { error, output } = await callBytezAPI('google/gemini-3-pro-preview', [
     {
       role: 'user',
       content: prompt,
