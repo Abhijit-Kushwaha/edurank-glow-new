@@ -178,30 +178,58 @@ const Auth = () => {
                 : 'Start your AI-powered study experience'}
             </p>
             {!isLogin && (
-              <div className="mt-4 flex justify-center">
-                <div className="bg-muted/50 rounded-lg p-1 flex">
-                  <button
-                    type="button"
-                    onClick={() => setAccountType('individual')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                      accountType === 'individual'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Individual
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setAccountType('organization')}
-                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                      accountType === 'organization'
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    Organization
-                  </button>
+              <div className="mt-4 space-y-4">
+                <div className="flex justify-center">
+                  <div className="bg-muted/50 rounded-lg p-1 flex">
+                    <button
+                      type="button"
+                      onClick={() => setAccountType('individual')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        accountType === 'individual'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Individual
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAccountType('organization')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        accountType === 'organization'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Organization
+                    </button>
+                  </div>
+                </div>
+                <div className="flex justify-center">
+                  <div className="bg-muted/50 rounded-lg p-1 flex">
+                    <button
+                      type="button"
+                      onClick={() => setSignupMethod('email')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        signupMethod === 'email'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Email
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSignupMethod('phone')}
+                      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                        signupMethod === 'phone'
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground'
+                      }`}
+                    >
+                      Phone
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -221,54 +249,86 @@ const Auth = () => {
                     required={!isLogin}
                   />
                 </div>
-                <div className="relative">
-                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder="Username (unique)"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value.replace(/\s/g, ''))}
-                    className="pl-10 pr-10"
-                    required={!isLogin}
-                  />
-                  {username.trim() && (
-                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                      {isCheckingUsername ? (
-                        <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      ) : isUsernameAvailable === true ? (
-                        <Check className="h-5 w-5 text-green-500" />
-                      ) : isUsernameAvailable === false ? (
-                        <X className="h-5 w-5 text-destructive" />
-                      ) : null}
-                    </div>
-                  )}
-                </div>
-                {username.trim() && isUsernameAvailable === false && (
+                {signupMethod === 'email' && (
+                  <div className="relative">
+                    <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Username (unique)"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value.replace(/\s/g, ''))}
+                      className="pl-10 pr-10"
+                      required={!isLogin && signupMethod === 'email'}
+                    />
+                    {username.trim() && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                        {isCheckingUsername ? (
+                          <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                        ) : isUsernameAvailable === true ? (
+                          <Check className="h-5 w-5 text-green-500" />
+                        ) : isUsernameAvailable === false ? (
+                          <X className="h-5 w-5 text-destructive" />
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {username.trim() && signupMethod === 'email' && isUsernameAvailable === false && (
                   <p className="text-xs text-destructive -mt-2">This username is already taken</p>
                 )}
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    type="email"
-                    placeholder="Email Address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required={!isLogin}
-                  />
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                  <Input
-                    type="password"
-                    placeholder="Password (min 6 characters)"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                    minLength={6}
-                    required={!isLogin}
-                  />
-                </div>
+                {signupMethod === 'email' ? (
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      type="email"
+                      placeholder="Email Address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10"
+                      required={!isLogin && signupMethod === 'email'}
+                    />
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      type="tel"
+                      placeholder="Phone Number (e.g. +1234567890)"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      className="pl-10"
+                      required={!isLogin && signupMethod === 'phone'}
+                    />
+                  </div>
+                )}
+                {!isOtpSent && (
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      type="password"
+                      placeholder="Password (min 6 characters)"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-10"
+                      minLength={6}
+                      required={!isLogin && !isOtpSent}
+                    />
+                  </div>
+                )}
+                {isOtpSent && (
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                    <Input
+                      type="text"
+                      placeholder="Enter 6-digit OTP"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      className="pl-10 text-center tracking-widest"
+                      maxLength={6}
+                      required={isOtpSent}
+                    />
+                  </div>
+                )}
                 {accountType === 'organization' && (
                   <>
                     <div className="relative">
@@ -347,17 +407,17 @@ const Auth = () => {
               variant="neon"
               size="lg"
               className="w-full"
-              disabled={isLoading}
+              disabled={isLoading || isVerifyingOtp}
             >
-              {isLoading ? (
+              {isLoading || isVerifyingOtp ? (
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  Processing...
+                  {isVerifyingOtp ? 'Verifying...' : 'Processing...'}
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4" />
-                  {isLogin ? 'Sign In' : 'Create Account'}
+                  {isLogin ? 'Sign In' : isOtpSent ? 'Verify OTP' : signupMethod === 'phone' ? 'Send OTP' : 'Create Account'}
                   <ArrowRight className="h-4 w-4" />
                 </div>
               )}
