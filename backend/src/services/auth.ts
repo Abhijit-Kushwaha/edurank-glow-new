@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import argon2 from 'argon2';
 import jwt from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
-import { db } from '../database';
+import { getDatabase } from '../database';
 import { users, sessions, auditLogs } from '../types/database';
 import { eq, and, gt } from 'drizzle-orm';
 import {
@@ -116,6 +116,7 @@ export class AuthService {
     const { email, password, firstName, lastName } = data;
 
     // Check if user already exists
+    const db = getDatabase();
     const existingUser = await db
       .select()
       .from(users)
@@ -165,6 +166,7 @@ export class AuthService {
     userAgent?: string
   ): Promise<{ user: UserContext; tokens: AuthTokens }> {
     const { email, password, deviceFingerprint } = data;
+    const db = getDatabase();
 
     // Find user
     const [user] = await db
@@ -224,6 +226,7 @@ export class AuthService {
    */
   async refreshToken(refreshToken: string): Promise<AuthTokens> {
     const payload = this.verifyRefreshToken(refreshToken);
+    const db = getDatabase();
 
     // Find and validate session
     const [session] = await db
@@ -259,6 +262,7 @@ export class AuthService {
    * Logout user (revoke session)
    */
   async logout(refreshToken: string, userId: string): Promise<void> {
+    const db = getDatabase();
     const hash = this.hashToken(refreshToken);
 
     await db
@@ -281,6 +285,7 @@ export class AuthService {
    * Get user context with roles and permissions
    */
   async getUserContext(userId: string): Promise<UserContext> {
+    const db = getDatabase();
     // This is a simplified version - in production you'd join with user_roles, roles, and permissions
     const [user] = await db
       .select()
@@ -314,6 +319,7 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string
   ): Promise<AuthTokens> {
+    const db = getDatabase();
     const sessionId = randomBytes(16).toString('hex');
     const refreshToken = this.generateRefreshToken({
       userId,
@@ -375,6 +381,7 @@ export class AuthService {
    * Handle failed login attempt
    */
   private async handleFailedLogin(userId: string): Promise<void> {
+    const db = getDatabase();
     const [user] = await db
       .select()
       .from(users)

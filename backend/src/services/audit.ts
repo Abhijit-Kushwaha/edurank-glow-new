@@ -1,4 +1,4 @@
-import { db } from '../database';
+import { getDatabase } from '../database';
 import { auditLogs } from '../types/database';
 import { AuditEvent } from '../types/auth';
 
@@ -8,6 +8,7 @@ export class AuditService {
    */
   async log(event: AuditEvent): Promise<void> {
     try {
+      const db = getDatabase();
       await db.insert(auditLogs).values({
         actorId: event.actorId,
         action: event.action,

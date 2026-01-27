@@ -1,19 +1,35 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import * as schema from './database';
+import * as schema from './types/database';
 
-// Database connection
-const connectionString = process.env.DATABASE_URL!;
+// Database connection - lazy loaded
+let db: ReturnType<typeof drizzle> | null = null;
+let client: ReturnType<typeof postgres> | null = null;
 
-// Create the connection
-const client = postgres(connectionString, {
-  max: 10,
-  idle_timeout: 20,
-  connect_timeout: 10,
-});
+export function getDatabase() {
+  if (!db) {
+    const connectionString = process.env.DATABASE_URL;
 
-// Create the database instance
-export const db = drizzle(client, { schema });
+    if (!connectionString) {
+      throw new Error('DATABASE_URL environment variable is required');
+    }
+
+    try {
+      client = postgres(connectionString, {
+        max: 10,
+        idle_timeout: 20,
+        connect_timeout: 10,
+      });
+
+      db = drizzle(client, { schema });
+    } catch (error) {
+      console.error('Failed to connect to database:', error);
+      throw new Error('Database connection failed');
+    }
+  }
+
+  return db;
+}
 
 // Export for testing/cleanup
 export { client };

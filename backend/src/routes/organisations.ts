@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { body, validationResult } from 'express-validator';
-import { db } from '../database';
+import { getDatabase } from '../database';
 import { organisations, invites } from '../types/database';
 import { eq, and } from 'drizzle-orm';
 import { authenticate, authorize, enforceOrgIsolation } from '../middleware/auth';
@@ -38,6 +38,7 @@ router.post(
 
       const data: CreateOrganisationRequest = req.body;
       const userId = req.user!.id;
+      const db = getDatabase();
 
       // Check if slug is unique
       const existingOrg = await db
@@ -109,6 +110,7 @@ router.get(
   async (req: Request, res: Response<ApiResponse>): Promise<void> => {
     try {
       const { organisationId } = req.params;
+      const db = getDatabase();
 
       const [org] = await db
         .select()
@@ -175,6 +177,7 @@ router.patch(
       const { organisationId } = req.params;
       const updates = req.body;
       const userId = req.user!.id;
+      const db = getDatabase();
 
       // Get current organisation for audit
       const [currentOrg] = await db
@@ -247,6 +250,7 @@ router.post(
       const { organisationId } = req.params;
       const data: InviteUserRequest = req.body;
       const userId = req.user!.id;
+      const db = getDatabase();
 
       // Check if user is already invited
       const existingInvite = await db
