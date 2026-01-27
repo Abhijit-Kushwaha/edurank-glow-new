@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { FilterProvider } from "@/contexts/FilterContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import FeedbackButton from "@/components/FeedbackButton";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
@@ -164,6 +165,7 @@ const App = () => (
             <Route path="/about" element={<About />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <FeedbackButton />
         </BrowserRouter>
         </TooltipProvider>
       </FilterProvider>
