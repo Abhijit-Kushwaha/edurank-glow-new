@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, ArrowRight, Sparkles, AtSign, Check, X, Loader2, Phone } from 'lucide-react';
+import { Mail, Lock, User, ArrowRight, Sparkles, AtSign, Check, X, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,16 +22,8 @@ const Auth = () => {
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [isSendingReset, setIsSendingReset] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
-  // OTP states
-  const [otpMode, setOtpMode] = useState<'email' | 'phone'>('email');
-  const [identifier, setIdentifier] = useState(''); // email or phone
-  const [otp, setOtp] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [isSendingOtp, setIsSendingOtp] = useState(false);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [resendCooldown, setResendCooldown] = useState(0);
   const navigate = useNavigate();
-  const { login, signup, sendOtpSignup, verifyOtpSignup, user } = useAuth();
+  const { login, signup, user } = useAuth();
 
   // Redirect if already logged in
   useEffect(() => {
@@ -73,14 +65,6 @@ const Auth = () => {
     return () => clearTimeout(timeoutId);
   }, [username, isLogin]);
 
-  // Resend cooldown timer
-  useEffect(() => {
-    if (resendCooldown > 0) {
-      const timer = setTimeout(() => setResendCooldown(resendCooldown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [resendCooldown]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -95,13 +79,13 @@ const Auth = () => {
           navigate('/dashboard');
         }
       } else {
-        // OTP signup flow
-        if (!otpSent) {
-          // Send OTP
-          await handleSendOtp();
+        // Signup with email verification
+        const { error } = await signup(email, password, name, username.trim());
+        if (error) {
+          toast.error(error);
         } else {
-          // Verify OTP
-          await handleVerifyOtp();
+          toast.success('Account created! Please check your email to verify your account.');
+          // Optionally, you can reset the form or show a different state
         }
       }
     } catch (error) {
@@ -116,78 +100,6 @@ const Auth = () => {
       }
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSendOtp = async () => {
-    if (!name.trim()) {
-      toast.error('Please enter your name');
-      setIsLoading(false);
-      return;
-    }
-    if (!username.trim()) {
-      toast.error('Please enter a username');
-      setIsLoading(false);
-      return;
-    }
-    if (isUsernameAvailable === false) {
-      toast.error('This username is already taken');
-      setIsLoading(false);
-      return;
-    }
-    if (!identifier.trim()) {
-      toast.error(`Please enter your ${otpMode === 'email' ? 'email' : 'phone number'}`);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsSendingOtp(true);
-    const { error } = await sendOtpSignup(identifier, otpMode === 'phone');
-    setIsSendingOtp(false);
-
-    if (error) {
-      toast.error(error);
-      setIsLoading(false);
-    } else {
-      setOtpSent(true);
-      setResendCooldown(60); // 60 seconds cooldown
-      toast.success(`OTP sent to your ${otpMode === 'email' ? 'email' : 'phone'}!`);
-      setIsLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (!otp.trim()) {
-      toast.error('Please enter the OTP');
-      setIsLoading(false);
-      return;
-    }
-
-    setIsVerifyingOtp(true);
-    const { error } = await verifyOtpSignup(identifier, otp, otpMode === 'phone', name, username.trim());
-    setIsVerifyingOtp(false);
-
-    if (error) {
-      toast.error(error);
-      setIsLoading(false);
-    } else {
-      toast.success('Account created successfully!');
-      navigate('/dashboard');
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (resendCooldown > 0) return;
-
-    setIsSendingOtp(true);
-    const { error } = await sendOtpSignup(identifier, otpMode === 'phone');
-    setIsSendingOtp(false);
-
-    if (error) {
-      toast.error(error);
-    } else {
-      setResendCooldown(60);
-      toast.success(`OTP resent to your ${otpMode === 'email' ? 'email' : 'phone'}!`);
     }
   };
 
@@ -250,53 +162,17 @@ const Auth = () => {
         <div className="glass-card rounded-2xl p-8 animate-slide-up">
           <div className="text-center mb-6">
             <h1 className="text-2xl font-bold mb-2">
-              {!isLogin && otpSent ? 'Verify OTP' : isLogin ? 'Welcome Back' : 'Create Account'}
+              {isLogin ? 'Welcome Back' : 'Create Account'}
             </h1>
             <p className="text-muted-foreground">
-              {!isLogin && otpSent
-                ? `Enter the OTP sent to your ${otpMode === 'email' ? 'email' : 'phone'}`
-                : isLogin
+              {isLogin
                 ? 'Sign in to continue your learning journey'
                 : 'Start your AI-powered study experience'}
             </p>
-            {!isLogin && otpSent && (
-              <button
-                type="button"
-                onClick={() => setOtpSent(false)}
-                className="text-xs text-primary hover:underline mt-2"
-              >
-                ← Back to details
-              </button>
-            )}
           </div>
 
-          {!isLogin && !otpSent && (
-            <div className="flex justify-center mb-4">
-              <div className="flex bg-muted rounded-lg p-1">
-                <button
-                  type="button"
-                  onClick={() => setOtpMode('email')}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    otpMode === 'email' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Email OTP
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setOtpMode('phone')}
-                  className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
-                    otpMode === 'phone' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  Phone OTP
-                </button>
-              </div>
-            </div>
-          )}
-
           <form onSubmit={handleSubmit} className="space-y-4">
-            {!isLogin && !otpSent && (
+            {!isLogin && (
               <>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -334,55 +210,30 @@ const Auth = () => {
                 {username.trim() && isUsernameAvailable === false && (
                   <p className="text-xs text-destructive -mt-2">This username is already taken</p>
                 )}
-              </>
-            )}
-
-            {!isLogin && !otpSent && (
-              <div className="relative">
-                {otpMode === 'email' ? (
+                <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                ) : (
-                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                )}
-                <Input
-                  type={otpMode === 'email' ? 'email' : 'tel'}
-                  placeholder={otpMode === 'email' ? 'Email Address' : 'Phone Number (e.g. +1234567890)'}
-                  value={identifier}
-                  onChange={(e) => setIdentifier(e.target.value)}
-                  className="pl-10"
-                  required={!isLogin}
-                />
-              </div>
-            )}
-
-            {!isLogin && otpSent && (
-              <div className="space-y-2">
+                  <Input
+                    type="email"
+                    placeholder="Email Address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="pl-10"
+                    required={!isLogin}
+                  />
+                </div>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                   <Input
-                    type="text"
-                    placeholder="Enter 6-digit OTP"
-                    value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                    className="pl-10 text-center tracking-widest"
-                    maxLength={6}
-                    required
+                    type="password"
+                    placeholder="Password (min 6 characters)"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="pl-10"
+                    minLength={6}
+                    required={!isLogin}
                   />
                 </div>
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-muted-foreground">
-                    OTP sent to {otpMode === 'email' ? 'email' : 'phone'}: {identifier}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={handleResendOtp}
-                    disabled={resendCooldown > 0 || isSendingOtp}
-                    className="text-primary hover:underline disabled:text-muted-foreground disabled:cursor-not-allowed"
-                  >
-                    {isSendingOtp ? 'Sending...' : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend OTP'}
-                  </button>
-                </div>
-              </div>
+              </>
             )}
 
             {isLogin && (
@@ -429,17 +280,17 @@ const Auth = () => {
               variant="neon"
               size="lg"
               className="w-full"
-              disabled={isLoading || isSendingOtp || isVerifyingOtp}
+              disabled={isLoading}
             >
-              {isLoading || isSendingOtp || isVerifyingOtp ? (
+              {isLoading ? (
                 <div className="flex items-center gap-2">
                   <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  {isSendingOtp ? 'Sending OTP...' : isVerifyingOtp ? 'Verifying...' : 'Processing...'}
+                  Processing...
                 </div>
               ) : (
                 <div className="flex items-center gap-2">
                   <Sparkles className="h-4 w-4" />
-                  {!isLogin && !otpSent ? 'Send OTP' : !isLogin && otpSent ? 'Verify OTP' : 'Sign In'}
+                  {isLogin ? 'Sign In' : 'Create Account'}
                   <ArrowRight className="h-4 w-4" />
                 </div>
               )}
