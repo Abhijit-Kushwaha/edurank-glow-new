@@ -187,67 +187,123 @@ END $$;
 -- Quiz Rooms RLS Policies
 
 -- Users can view quiz rooms they created or joined
-CREATE POLICY "Users can view their quiz rooms"
-ON public.quiz_rooms
-FOR SELECT
-USING (
-  auth.uid() = host_id OR
-  EXISTS (SELECT 1 FROM public.quiz_players WHERE room_id = quiz_rooms.id AND user_id = auth.uid())
-);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'quiz_rooms' AND policyname = 'Users can view their quiz rooms'
+  ) THEN
+    CREATE POLICY "Users can view their quiz rooms"
+    ON public.quiz_rooms
+    FOR SELECT
+    USING (
+      auth.uid() = host_id OR
+      EXISTS (SELECT 1 FROM public.quiz_players WHERE room_id = quiz_rooms.id AND user_id = auth.uid())
+    );
+  END IF;
+END $$;
 
 -- Users can create quiz rooms
-CREATE POLICY "Users can create quiz rooms"
-ON public.quiz_rooms
-FOR INSERT
-WITH CHECK (auth.uid() = host_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'quiz_rooms' AND policyname = 'Users can create quiz rooms'
+  ) THEN
+    CREATE POLICY "Users can create quiz rooms"
+    ON public.quiz_rooms
+    FOR INSERT
+    WITH CHECK (auth.uid() = host_id);
+  END IF;
+END $$;
 
 -- Users can update quiz rooms they host
-CREATE POLICY "Users can update their quiz rooms"
-ON public.quiz_rooms
-FOR UPDATE
-USING (auth.uid() = host_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'quiz_rooms' AND policyname = 'Users can update their quiz rooms'
+  ) THEN
+    CREATE POLICY "Users can update their quiz rooms"
+    ON public.quiz_rooms
+    FOR UPDATE
+    USING (auth.uid() = host_id);
+  END IF;
+END $$;
 
 -- Quiz Players RLS Policies
 
 -- Users can view players in rooms they participate in
-CREATE POLICY "Users can view quiz players in their rooms"
-ON public.quiz_players
-FOR SELECT
-USING (
-  auth.uid() = user_id OR
-  EXISTS (SELECT 1 FROM public.quiz_rooms WHERE id = room_id AND host_id = auth.uid()) OR
-  EXISTS (SELECT 1 FROM public.quiz_players qp WHERE qp.room_id = room_id AND qp.user_id = auth.uid())
-);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'quiz_players' AND policyname = 'Users can view quiz players in their rooms'
+  ) THEN
+    CREATE POLICY "Users can view quiz players in their rooms"
+    ON public.quiz_players
+    FOR SELECT
+    USING (
+      auth.uid() = user_id OR
+      EXISTS (SELECT 1 FROM public.quiz_rooms WHERE id = room_id AND host_id = auth.uid()) OR
+      EXISTS (SELECT 1 FROM public.quiz_players qp WHERE qp.room_id = room_id AND qp.user_id = auth.uid())
+    );
+  END IF;
+END $$;
 
 -- Users can join quiz rooms
-CREATE POLICY "Users can join quiz rooms"
-ON public.quiz_players
-FOR INSERT
-WITH CHECK (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'quiz_players' AND policyname = 'Users can join quiz rooms'
+  ) THEN
+    CREATE POLICY "Users can join quiz rooms"
+    ON public.quiz_players
+    FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
 
 -- Users can update their own player records
-CREATE POLICY "Users can update their quiz player records"
-ON public.quiz_players
-FOR UPDATE
-USING (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'quiz_players' AND policyname = 'Users can update their quiz player records'
+  ) THEN
+    CREATE POLICY "Users can update their quiz player records"
+    ON public.quiz_players
+    FOR UPDATE
+    USING (auth.uid() = user_id);
+  END IF;
+END $$;
 
 -- Quiz Answers RLS Policies
 
 -- Users can view answers in rooms they participate in
-CREATE POLICY "Users can view quiz answers in their rooms"
-ON public.quiz_answers
-FOR SELECT
-USING (
-  auth.uid() = user_id OR
-  EXISTS (SELECT 1 FROM public.quiz_rooms WHERE id = room_id AND host_id = auth.uid()) OR
-  EXISTS (SELECT 1 FROM public.quiz_players qp WHERE qp.room_id = room_id AND qp.user_id = auth.uid())
-);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'quiz_answers' AND policyname = 'Users can view quiz answers in their rooms'
+  ) THEN
+    CREATE POLICY "Users can view quiz answers in their rooms"
+    ON public.quiz_answers
+    FOR SELECT
+    USING (
+      auth.uid() = user_id OR
+      EXISTS (SELECT 1 FROM public.quiz_rooms WHERE id = room_id AND host_id = auth.uid()) OR
+      EXISTS (SELECT 1 FROM public.quiz_players qp WHERE qp.room_id = room_id AND qp.user_id = auth.uid())
+    );
+  END IF;
+END $$;
 
 -- Users can submit their answers
-CREATE POLICY "Users can submit quiz answers"
-ON public.quiz_answers
-FOR INSERT
-WITH CHECK (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'quiz_answers' AND policyname = 'Users can submit quiz answers'
+  ) THEN
+    CREATE POLICY "Users can submit quiz answers"
+    ON public.quiz_answers
+    FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
 
 -- Create indexes for performance
 
