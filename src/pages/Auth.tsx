@@ -40,38 +40,26 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
-  // Check username availability with debounce
+  // Reset OTP states when switching signup methods
   useEffect(() => {
-    if (!username.trim() || isLogin) {
-      setIsUsernameAvailable(null);
-      return;
+    setIsOtpSent(false);
+    setOtp('');
+    setIsVerifyingOtp(false);
+  }, [signupMethod]);
+
+  // Reset form when switching between login/signup
+  useEffect(() => {
+    if (isLogin) {
+      setAccountType('individual');
+      setOrgName('');
+      setOrgSlug('');
+      setSignupMethod('email');
+      setPhoneNumber('');
+      setIsOtpSent(false);
+      setOtp('');
+      setIsVerifyingOtp(false);
     }
-
-    const timeoutId = setTimeout(async () => {
-      setIsCheckingUsername(true);
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('id')
-          .eq('name', username.trim())
-          .maybeSingle();
-
-        if (error) {
-          console.error('Error checking username:', error);
-          setIsUsernameAvailable(null);
-        } else {
-          setIsUsernameAvailable(data === null);
-        }
-      } catch (error) {
-        console.error('Error checking username:', error);
-        setIsUsernameAvailable(null);
-      } finally {
-        setIsCheckingUsername(false);
-      }
-    }, 500);
-
-    return () => clearTimeout(timeoutId);
-  }, [username, isLogin]);
+  }, [isLogin]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,13 +75,42 @@ const Auth = () => {
           navigate('/dashboard');
         }
       } else {
-        // Signup with email verification
-        const { error } = await signup(email, password, name, username.trim());
-        if (error) {
-          toast.error(error);
+        // Handle different signup methods
+        if (signupMethod === 'phone') {
+          if (!isOtpSent) {
+            // Send OTP
+            const { error } = await sendOtpSignup(phoneNumber, false);
+            if (error) {
+              toast.error(error);
+            } else {
+              setIsOtpSent(true);
+              toast.success('OTP sent to your phone!');
+            }
+          } else {
+            // Verify OTP
+            setIsVerifyingOtp(true);
+            const { error } = await verifyOtpSignup(phoneNumber, otp, false, name, username);
+            if (error) {
+              toast.error(error);
+            } else {
+              toast.success('Account created successfully!');
+              navigate('/dashboard');
+            }
+            setIsVerifyingOtp(false);
+          }
         } else {
-          toast.success('Account created! Please check your email to verify your account.');
-          // Optionally, you can reset the form or show a different state
+          // Email signup
+          const { error } = await signup(email, password, name, username.trim());
+          if (error) {
+            toast.error(error);
+          } else {
+            if (accountType === 'organization') {
+              toast.success('Account created! Organization features will be available after email verification.');
+            } else {
+              toast.success('Account created! Please check your email to verify your account.');
+            }
+            // Optionally, you can reset the form or show a different state
+          }
         }
       }
     } catch (error) {
@@ -205,6 +222,12 @@ const Auth = () => {
                     </button>
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  {accountType === 'individual' 
+                    ? 'Personal account for individual learning' 
+                    : 'Organization account for team management and collaboration'
+                  }
+                </p>
                 <div className="flex justify-center">
                   <div className="bg-muted/50 rounded-lg p-1 flex">
                     <button
@@ -231,6 +254,12 @@ const Auth = () => {
                     </button>
                   </div>
                 </div>
+                <p className="text-xs text-muted-foreground text-center">
+                  {signupMethod === 'email' 
+                    ? 'Sign up with email and create a unique username' 
+                    : 'Sign up with phone number using OTP verification'
+                  }
+                </p>
               </div>
             )}
           </div>
