@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Coins, RefreshCw, Loader2, Trophy, Award, TrendingUp, Camera } from 'lucide-react';
+import { ArrowLeft, User, Coins, RefreshCw, Loader2, Trophy, Award, TrendingUp, Camera, Settings, Bell, Shield, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import Logo from '@/components/Logo';
 import { useAuth } from '@/contexts/AuthContext';
@@ -279,18 +282,85 @@ const Profile = () => {
           </div>
         </section>
 
-        {/* Achievements Section */}
+        {/* Settings Section */}
         <section className="glass-card rounded-2xl p-6 animate-slide-up">
           <div className="flex items-center gap-3 mb-6">
             <div className="p-2 rounded-lg bg-primary/10">
-              <Award className="h-5 w-5 text-primary" />
+              <Settings className="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h2 className="font-semibold">Achievements</h2>
-              <p className="text-sm text-muted-foreground">Unlock badges as you learn</p>
+              <h2 className="font-semibold">Settings & Preferences</h2>
+              <p className="text-sm text-muted-foreground">Customize your experience</p>
             </div>
           </div>
-          <AchievementsPanel />
+
+          <div className="space-y-6">
+            {/* Notifications */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Bell className="h-5 w-5 text-primary" />
+                <h3 className="font-medium">Notifications</h3>
+              </div>
+              <div className="space-y-3 ml-8">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="quiz-reminders" className="text-sm">Quiz Reminders</Label>
+                  <Switch id="quiz-reminders" defaultChecked />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="achievement-notifications" className="text-sm">Achievement Notifications</Label>
+                  <Switch id="achievement-notifications" defaultChecked />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="friend-requests" className="text-sm">Friend Requests</Label>
+                  <Switch id="friend-requests" defaultChecked />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Privacy */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Shield className="h-5 w-5 text-primary" />
+                <h3 className="font-medium">Privacy</h3>
+              </div>
+              <div className="space-y-3 ml-8">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="profile-visibility" className="text-sm">Profile Visibility</Label>
+                  <Switch id="profile-visibility" defaultChecked />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="leaderboard-visibility" className="text-sm">Show on Leaderboard</Label>
+                  <Switch id="leaderboard-visibility" defaultChecked />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="activity-status" className="text-sm">Show Activity Status</Label>
+                  <Switch id="activity-status" defaultChecked />
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Appearance */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <Palette className="h-5 w-5 text-primary" />
+                <h3 className="font-medium">Appearance</h3>
+              </div>
+              <div className="space-y-3 ml-8">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="dark-mode" className="text-sm">Dark Mode</Label>
+                  <Switch id="dark-mode" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="animations" className="text-sm">Enable Animations</Label>
+                  <Switch id="animations" defaultChecked />
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         {/* Navigation Links */}

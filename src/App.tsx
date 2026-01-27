@@ -24,6 +24,7 @@ import Analysis from "./pages/Analysis";
 import Friends from "./pages/Friends";
 import QuizRoom from "./pages/QuizRoom";
 import Achievements from "./pages/Achievements";
+import Chat from "./pages/Chat";
 
 const queryClient = new QueryClient();
 
@@ -133,6 +134,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Friends />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/chat"
+              element={
+                <ProtectedRoute>
+                  <Chat />
                 </ProtectedRoute>
               }
             />

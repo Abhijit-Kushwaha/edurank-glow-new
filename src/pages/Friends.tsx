@@ -50,14 +50,73 @@ const Friends = () => {
   }, [user]);
 
   const loadFriends = async () => {
-    // Temporarily disabled - database migrations pending
-    setFriends([]);
-    setIsLoading(false);
+    try {
+      const { data, error } = await supabase
+        .from('friends')
+        .select(`
+          id,
+          user_id,
+          friend_id,
+          created_at,
+          friend_profile:profiles!friends_friend_id_fkey (
+            id,
+            user_id,
+            name,
+            avatar_url
+          )
+        `)
+        .or(`user_id.eq.${user!.id},friend_id.eq.${user!.id}`);
+
+      if (error) throw error;
+
+      const friendList = data?.map(friend => ({
+        id: friend.friend_profile.id,
+        user_id: friend.user_id === user!.id ? friend.friend_id : friend.user_id,
+        name: friend.friend_profile.name || 'Unknown',
+        avatar_url: friend.friend_profile.avatar_url
+      })) || [];
+
+      setFriends(friendList);
+    } catch (error) {
+      console.error('Error loading friends:', error);
+      toast.error('Failed to load friends');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const loadFriendRequests = async () => {
-    // Temporarily disabled - database migrations pending
-    setFriendRequests([]);
+    try {
+      const { data, error } = await supabase
+        .from('friend_requests')
+        .select(`
+          id,
+          sender_id,
+          receiver_id,
+          status,
+          created_at,
+          sender_profile:profiles!friend_requests_sender_id_fkey (
+            id,
+            user_id,
+            name,
+            avatar_url
+          ),
+          receiver_profile:profiles!friend_requests_receiver_id_fkey (
+            id,
+            user_id,
+            name,
+            avatar_url
+          )
+        `)
+        .or(`sender_id.eq.${user!.id},receiver_id.eq.${user!.id}`)
+        .eq('status', 'pending');
+
+      if (error) throw error;
+      setFriendRequests(data || []);
+    } catch (error) {
+      console.error('Error loading friend requests:', error);
+      toast.error('Failed to load friend requests');
+    }
   };
 
   const searchUsers = async (query: string) => {
@@ -86,23 +145,84 @@ const Friends = () => {
   };
 
   const sendFriendRequest = async (receiverId: string) => {
-    // Temporarily disabled - database migrations pending
-    toast.info('Friend requests feature coming soon!');
+    try {
+      const { error } = await supabase
+        .from('friend_requests')
+        .insert({
+          sender_id: user!.id,
+          receiver_id: receiverId,
+          status: 'pending'
+        });
+
+      if (error) throw error;
+
+      toast.success('Friend request sent!');
+      trackFriendRequest();
+      loadFriendRequests(); // Refresh requests
+    } catch (error: any) {
+      console.error('Error sending friend request:', error);
+      if (error.code === '23505') { // Unique constraint violation
+        toast.error('Friend request already sent');
+      } else {
+        toast.error('Failed to send friend request');
+      }
+    }
   };
 
-  const acceptFriendRequest = async (senderId: string) => {
-    // Temporarily disabled - database migrations pending
-    toast.info('Friend requests feature coming soon!');
+  const acceptFriendRequest = async (requestId: string, senderId: string) => {
+    try {
+      // Update request status
+      const { error: updateError } = await supabase
+        .from('friend_requests')
+        .update({ status: 'accepted' })
+        .eq('id', requestId);
+
+      if (updateError) throw updateError;
+
+      // Create friendship
+      const { error: friendError } = await supabase
+        .from('friends')
+        .insert({
+          user_id: user!.id,
+          friend_id: senderId
+        });
+
+      if (friendError) throw friendError;
+
+      toast.success('Friend request accepted!');
+      loadFriends();
+      loadFriendRequests();
+    } catch (error) {
+      console.error('Error accepting friend request:', error);
+      toast.error('Failed to accept friend request');
+    }
   };
 
-  const rejectFriendRequest = async (senderId: string) => {
-    // Temporarily disabled - database migrations pending
-    toast.info('Friend requests feature coming soon!');
+  const rejectFriendRequest = async (requestId: string) => {
+    try {
+      const { error } = await supabase
+        .from('friend_requests')
+        .update({ status: 'rejected' })
+        .eq('id', requestId);
+
+      if (error) throw error;
+
+      toast.success('Friend request rejected');
+      loadFriendRequests();
+    } catch (error) {
+      console.error('Error rejecting friend request:', error);
+      toast.error('Failed to reject friend request');
+    }
   };
 
   const startQuizWithFriend = (friendId: string) => {
     // Navigate to quiz room creation with friend
     navigate(`/quiz-room?friend=${friendId}`);
+  };
+
+  const startChatWithFriend = (friendId: string) => {
+    // Navigate to chat with friend
+    navigate(`/chat?friend=${friendId}`);
   };
 
   const receivedRequests = friendRequests.filter(req => req.receiver_id === user?.id);
@@ -178,7 +298,7 @@ const Friends = () => {
                           <Trophy className="h-4 w-4 mr-2" />
                           Quiz Together
                         </Button>
-                        <Button size="sm" variant="outline">
+                        <Button size="sm" variant="outline" onClick={() => startChatWithFriend(friend.user_id)}>
                           <MessageCircle className="h-4 w-4" />
                         </Button>
                       </div>
