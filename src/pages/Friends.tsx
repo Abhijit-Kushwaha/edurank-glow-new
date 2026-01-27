@@ -125,14 +125,19 @@ const Friends = () => {
       return;
     }
 
+    if (!user?.id) {
+      console.error('User not authenticated');
+      toast.error('You must be logged in to search users');
+      return;
+    }
+
     setIsSearching(true);
     try {
       const { data, error } = await supabase
-        .from('profiles')
-        .select('id, user_id, name, avatar_url')
-        .neq('user_id', user!.id)
-        .ilike('name', `%${query}%`)
-        .limit(10);
+        .rpc('search_users', {
+          search_query: query,
+          current_user_id: user.id
+        });
 
       if (error) throw error;
       setSearchResults(data || []);
@@ -145,11 +150,16 @@ const Friends = () => {
   };
 
   const sendFriendRequest = async (receiverId: string) => {
+    if (!user?.id) {
+      toast.error('You must be logged in to send friend requests');
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('friend_requests')
         .insert({
-          sender_id: user!.id,
+          sender_id: user.id,
           receiver_id: receiverId,
           status: 'pending'
         });
