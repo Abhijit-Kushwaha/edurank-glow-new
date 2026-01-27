@@ -22,8 +22,16 @@ const Auth = () => {
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
   const [isSendingReset, setIsSendingReset] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [accountType, setAccountType] = useState<'individual' | 'organization'>('individual');
+  const [orgName, setOrgName] = useState('');
+  const [orgSlug, setOrgSlug] = useState('');
+  const [signupMethod, setSignupMethod] = useState<'email' | 'phone'>('email');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [otp, setOtp] = useState('');
+  const [isOtpSent, setIsOtpSent] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const navigate = useNavigate();
-  const { login, signup, user } = useAuth();
+  const { login, signup, sendOtpSignup, verifyOtpSignup, user } = useAuth();
 
   // Redirect if already logged in
   useEffect(() => {
@@ -169,6 +177,34 @@ const Auth = () => {
                 ? 'Sign in to continue your learning journey'
                 : 'Start your AI-powered study experience'}
             </p>
+            {!isLogin && (
+              <div className="mt-4 flex justify-center">
+                <div className="bg-muted/50 rounded-lg p-1 flex">
+                  <button
+                    type="button"
+                    onClick={() => setAccountType('individual')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      accountType === 'individual'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Individual
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAccountType('organization')}
+                    className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      accountType === 'organization'
+                        ? 'bg-primary text-primary-foreground'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Organization
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -233,6 +269,37 @@ const Auth = () => {
                     required={!isLogin}
                   />
                 </div>
+                {accountType === 'organization' && (
+                  <>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Organization Name"
+                        value={orgName}
+                        onChange={(e) => setOrgName(e.target.value)}
+                        className="pl-10"
+                        required={!isLogin && accountType === 'organization'}
+                      />
+                    </div>
+                    <div className="relative">
+                      <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="Organization Slug (unique URL)"
+                        value={orgSlug}
+                        onChange={(e) => setOrgSlug(e.target.value.replace(/[^a-z0-9-]/g, '').toLowerCase())}
+                        className="pl-10"
+                        required={!isLogin && accountType === 'organization'}
+                      />
+                    </div>
+                    {orgSlug && (
+                      <p className="text-xs text-muted-foreground -mt-2">
+                        Your organization URL will be: {window.location.origin}/org/{orgSlug}
+                      </p>
+                    )}
+                  </>
+                )}
               </>
             )}
 
