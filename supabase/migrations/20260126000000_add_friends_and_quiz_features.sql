@@ -60,45 +60,129 @@ CREATE TABLE IF NOT EXISTS public.quiz_answers (
 );
 
 -- Enable Row Level Security on all tables
-ALTER TABLE public.friend_requests ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.friends ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.quiz_rooms ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.quiz_players ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.quiz_answers ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname = 'friend_requests' AND n.nspname = 'public' AND c.relrowsecurity = true
+  ) THEN
+    ALTER TABLE public.friend_requests ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname = 'friends' AND n.nspname = 'public' AND c.relrowsecurity = true
+  ) THEN
+    ALTER TABLE public.friends ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname = 'quiz_rooms' AND n.nspname = 'public' AND c.relrowsecurity = true
+  ) THEN
+    ALTER TABLE public.quiz_rooms ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname = 'quiz_players' AND n.nspname = 'public' AND c.relrowsecurity = true
+  ) THEN
+    ALTER TABLE public.quiz_players ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname = 'quiz_answers' AND n.nspname = 'public' AND c.relrowsecurity = true
+  ) THEN
+    ALTER TABLE public.quiz_answers ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
 
 -- Friend Requests RLS Policies
 
 -- Users can view friend requests they sent or received
-CREATE POLICY "Users can view their friend requests"
-ON public.friend_requests
-FOR SELECT
-USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'friend_requests' AND policyname = 'Users can view their friend requests'
+  ) THEN
+    CREATE POLICY "Users can view their friend requests"
+    ON public.friend_requests
+    FOR SELECT
+    USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+  END IF;
+END $$;
 
 -- Users can create friend requests (as sender)
-CREATE POLICY "Users can send friend requests"
-ON public.friend_requests
-FOR INSERT
-WITH CHECK (auth.uid() = sender_id AND sender_id != receiver_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'friend_requests' AND policyname = 'Users can send friend requests'
+  ) THEN
+    CREATE POLICY "Users can send friend requests"
+    ON public.friend_requests
+    FOR INSERT
+    WITH CHECK (auth.uid() = sender_id AND sender_id != receiver_id);
+  END IF;
+END $$;
 
 -- Users can update friend requests they received (accept/reject)
-CREATE POLICY "Users can update received friend requests"
-ON public.friend_requests
-FOR UPDATE
-USING (auth.uid() = receiver_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'friend_requests' AND policyname = 'Users can update received friend requests'
+  ) THEN
+    CREATE POLICY "Users can update received friend requests"
+    ON public.friend_requests
+    FOR UPDATE
+    USING (auth.uid() = receiver_id);
+  END IF;
+END $$;
 
 -- Friends RLS Policies
 
 -- Users can view their friendships
-CREATE POLICY "Users can view their friendships"
-ON public.friends
-FOR SELECT
-USING (auth.uid() = user_id OR auth.uid() = friend_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'friends' AND policyname = 'Users can view their friendships'
+  ) THEN
+    CREATE POLICY "Users can view their friendships"
+    ON public.friends
+    FOR SELECT
+    USING (auth.uid() = user_id OR auth.uid() = friend_id);
+  END IF;
+END $$;
 
 -- Users can create friendships (when accepting requests)
-CREATE POLICY "Users can create friendships"
-ON public.friends
-FOR INSERT
-WITH CHECK (auth.uid() = user_id OR auth.uid() = friend_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'friends' AND policyname = 'Users can create friendships'
+  ) THEN
+    CREATE POLICY "Users can create friendships"
+    ON public.friends
+    FOR INSERT
+    WITH CHECK (auth.uid() = user_id OR auth.uid() = friend_id);
+  END IF;
+END $$;
 
 -- Quiz Rooms RLS Policies
 

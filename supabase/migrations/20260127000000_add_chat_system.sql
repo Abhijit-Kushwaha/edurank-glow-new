@@ -30,57 +30,128 @@ CREATE TABLE IF NOT EXISTS public.chat_messages (
 );
 
 -- Enable Row Level Security
-ALTER TABLE public.chat_rooms ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.chat_participants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname = 'chat_rooms' AND n.nspname = 'public' AND c.relrowsecurity = true
+  ) THEN
+    ALTER TABLE public.chat_rooms ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname = 'chat_participants' AND n.nspname = 'public' AND c.relrowsecurity = true
+  ) THEN
+    ALTER TABLE public.chat_participants ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname = 'chat_messages' AND n.nspname = 'public' AND c.relrowsecurity = true
+  ) THEN
+    ALTER TABLE public.chat_messages ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
 
 -- Chat Rooms RLS Policies
 -- Users can view chat rooms they participate in
-CREATE POLICY "Users can view their chat rooms"
-ON public.chat_rooms
-FOR SELECT
-USING (
-  EXISTS (SELECT 1 FROM public.chat_participants WHERE room_id = chat_rooms.id AND user_id = auth.uid())
-);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'chat_rooms' AND policyname = 'Users can view their chat rooms'
+  ) THEN
+    CREATE POLICY "Users can view their chat rooms"
+    ON public.chat_rooms
+    FOR SELECT
+    USING (
+      EXISTS (SELECT 1 FROM public.chat_participants WHERE room_id = chat_rooms.id AND user_id = auth.uid())
+    );
+  END IF;
+END $$;
 
 -- Users can create chat rooms
-CREATE POLICY "Users can create chat rooms"
-ON public.chat_rooms
-FOR INSERT
-WITH CHECK (true);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'chat_rooms' AND policyname = 'Users can create chat rooms'
+  ) THEN
+    CREATE POLICY "Users can create chat rooms"
+    ON public.chat_rooms
+    FOR INSERT
+    WITH CHECK (true);
+  END IF;
+END $$;
 
 -- Chat Participants RLS Policies
 -- Users can view participants in rooms they participate in
-CREATE POLICY "Users can view chat participants in their rooms"
-ON public.chat_participants
-FOR SELECT
-USING (
-  EXISTS (SELECT 1 FROM public.chat_participants cp WHERE cp.room_id = chat_participants.room_id AND cp.user_id = auth.uid())
-);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'chat_participants' AND policyname = 'Users can view chat participants in their rooms'
+  ) THEN
+    CREATE POLICY "Users can view chat participants in their rooms"
+    ON public.chat_participants
+    FOR SELECT
+    USING (
+      EXISTS (SELECT 1 FROM public.chat_participants cp WHERE cp.room_id = chat_participants.room_id AND cp.user_id = auth.uid())
+    );
+  END IF;
+END $$;
 
 -- Users can join chat rooms (when invited or creating)
-CREATE POLICY "Users can join chat rooms"
-ON public.chat_participants
-FOR INSERT
-WITH CHECK (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'chat_participants' AND policyname = 'Users can join chat rooms'
+  ) THEN
+    CREATE POLICY "Users can join chat rooms"
+    ON public.chat_participants
+    FOR INSERT
+    WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
 
 -- Chat Messages RLS Policies
 -- Users can view messages in rooms they participate in
-CREATE POLICY "Users can view messages in their chat rooms"
-ON public.chat_messages
-FOR SELECT
-USING (
-  EXISTS (SELECT 1 FROM public.chat_participants WHERE room_id = chat_messages.room_id AND user_id = auth.uid())
-);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'chat_messages' AND policyname = 'Users can view messages in their chat rooms'
+  ) THEN
+    CREATE POLICY "Users can view messages in their chat rooms"
+    ON public.chat_messages
+    FOR SELECT
+    USING (
+      EXISTS (SELECT 1 FROM public.chat_participants WHERE room_id = chat_messages.room_id AND user_id = auth.uid())
+    );
+  END IF;
+END $$;
 
 -- Users can send messages to rooms they participate in
-CREATE POLICY "Users can send messages to their chat rooms"
-ON public.chat_messages
-FOR INSERT
-WITH CHECK (
-  auth.uid() = sender_id AND
-  EXISTS (SELECT 1 FROM public.chat_participants WHERE room_id = chat_messages.room_id AND user_id = auth.uid())
-);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'chat_messages' AND policyname = 'Users can send messages to their chat rooms'
+  ) THEN
+    CREATE POLICY "Users can send messages to their chat rooms"
+    ON public.chat_messages
+    FOR INSERT
+    WITH CHECK (
+      auth.uid() = sender_id AND
+      EXISTS (SELECT 1 FROM public.chat_participants WHERE room_id = chat_messages.room_id AND user_id = auth.uid())
+    );
+  END IF;
+END $$;
 
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS chat_participants_room_user ON public.chat_participants(room_id, user_id);
@@ -89,15 +160,29 @@ CREATE INDEX IF NOT EXISTS chat_messages_room_created ON public.chat_messages(ro
 CREATE INDEX IF NOT EXISTS chat_messages_sender ON public.chat_messages(sender_id);
 
 -- Create triggers for updated_at
-CREATE TRIGGER update_chat_rooms_updated_at
-BEFORE UPDATE ON public.chat_rooms
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'update_chat_rooms_updated_at'
+  ) THEN
+    CREATE TRIGGER update_chat_rooms_updated_at
+    BEFORE UPDATE ON public.chat_rooms
+    FOR EACH ROW
+    EXECUTE FUNCTION public.update_updated_at_column();
+  END IF;
+END $$;
 
-CREATE TRIGGER update_chat_messages_updated_at
-BEFORE UPDATE ON public.chat_messages
-FOR EACH ROW
-EXECUTE FUNCTION public.update_updated_at_column();
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'update_chat_messages_updated_at'
+  ) THEN
+    CREATE TRIGGER update_chat_messages_updated_at
+    BEFORE UPDATE ON public.chat_messages
+    FOR EACH ROW
+    EXECUTE FUNCTION public.update_updated_at_column();
+  END IF;
+END $$;
 
 -- Function to create or get chat room between two friends
 CREATE OR REPLACE FUNCTION public.get_or_create_chat_room(friend_a UUID, friend_b UUID)

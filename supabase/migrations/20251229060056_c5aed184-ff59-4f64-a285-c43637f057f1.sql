@@ -1,5 +1,5 @@
 -- Create profiles table for user information
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
   name TEXT,
@@ -10,23 +10,53 @@ CREATE TABLE public.profiles (
 );
 
 -- Enable Row Level Security
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE c.relname = 'profiles' AND n.nspname = 'public' AND c.relrowsecurity = true
+  ) THEN
+    ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
 
 -- Create policies for user access
-CREATE POLICY "Users can view their own profile" 
-ON public.profiles 
-FOR SELECT 
-USING (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'profiles' AND policyname = 'Users can view their own profile'
+  ) THEN
+    CREATE POLICY "Users can view their own profile" 
+    ON public.profiles 
+    FOR SELECT 
+    USING (auth.uid() = user_id);
+  END IF;
+END $$;
 
-CREATE POLICY "Users can update their own profile" 
-ON public.profiles 
-FOR UPDATE 
-USING (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'profiles' AND policyname = 'Users can update their own profile'
+  ) THEN
+    CREATE POLICY "Users can update their own profile" 
+    ON public.profiles 
+    FOR UPDATE 
+    USING (auth.uid() = user_id);
+  END IF;
+END $$;
 
-CREATE POLICY "Users can insert their own profile" 
-ON public.profiles 
-FOR INSERT 
-WITH CHECK (auth.uid() = user_id);
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'profiles' AND policyname = 'Users can insert their own profile'
+  ) THEN
+    CREATE POLICY "Users can insert their own profile" 
+    ON public.profiles 
+    FOR INSERT 
+    WITH CHECK (auth.uid() = user_id);
+  END IF;
+END $$;
 
 -- Create function to update timestamps
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
