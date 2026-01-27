@@ -22,6 +22,7 @@ interface SearchedVideo {
   video_id: string;
   duration?: string;
   engagement_score?: number;
+  thumbnail_url?: string;
 }
 
 interface ManualVideoSearchProps {
@@ -58,6 +59,7 @@ const ManualVideoSearch = ({ onVideoSelect, onAddToTodo }: ManualVideoSearchProp
           video_id: video.video_id,
           duration: video.duration,
           engagement_score: video.engagement_score,
+          thumbnail_url: video.thumbnail_url,
         }));
         setResults(formattedVideos);
         toast.success(`Found ${formattedVideos.length} videos!`);
@@ -169,7 +171,15 @@ const ManualVideoSearch = ({ onVideoSelect, onAddToTodo }: ManualVideoSearchProp
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <Play className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    {video.thumbnail_url ? (
+                      <img
+                        src={video.thumbnail_url}
+                        alt={video.title}
+                        className="w-16 h-12 object-cover rounded flex-shrink-0"
+                      />
+                    ) : (
+                      <Play className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    )}
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-gray-800 line-clamp-2">
                         {video.title}
