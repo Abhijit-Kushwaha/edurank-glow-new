@@ -9,7 +9,7 @@ const FeedbackButton = () => {
   return (
     <Button
       onClick={handleFeedback}
-      className="fixed bottom-4 right-4 z-50 rounded-full w-12 h-12 p-0 shadow-lg hover:shadow-xl transition-shadow"
+      className="fixed bottom-4 left-4 z-50 rounded-full w-12 h-12 p-0 shadow-lg hover:shadow-xl transition-shadow"
       size="icon"
       title="Submit Feedback"
     >
