@@ -205,7 +205,7 @@ Return ONLY the JSON array, no markdown or extra text.`;
 }
 
 /**
- * Find educational videos using Gemini
+ * Find educational videos using DeepSeek V3.2 Exp
  * Validates that videos are NOT shorts (duration >= 10 minutes)
  */
 export async function findVideoWithBytez(
@@ -271,7 +271,7 @@ Format as JSON array with structure:
 
 Return ONLY the JSON array, no markdown or extra text.`;
 
-  const { error, output } = await callBytezAPI('google/gemini-3-pro-preview', [
+  const { error, output } = await callBytezAPI('mlfoundations-dev/oh-dcft-v3.1-gemini-1.5-flash', [
     {
       role: 'user',
       content: prompt,

@@ -154,23 +154,23 @@ Focus on educational content that would help a student understand this topic tho
   }
 }
 
-// Bytez AI call function (using GPT-4.1-mini for notes generation)
+// Bytez AI call function (using DeepSeek V3.2 Exp for notes generation)
 async function callBytezAI(messages: { role: string; content: string }[]): Promise<string> {
   const BYTEZ_API_KEY = Deno.env.get('BYTEZ_API_KEY');
   if (!BYTEZ_API_KEY) {
     throw new Error('BYTEZ_API_KEY is not configured');
   }
 
-  console.log('Calling Bytez AI (GPT-4.1-mini) for notes generation...');
+  console.log('Calling Bytez AI (DeepSeek V3.2 Exp) for notes generation...');
   
-  const response = await fetch('https://api.bytez.com/v1/chat/completions', {
+  const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${BYTEZ_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'openai/gpt-4.1-mini',
+      model: 'deepseek-ai/DeepSeek-V3.2-Exp',
       messages,
       temperature: 0.7,
       max_tokens: 2000,
@@ -186,6 +186,9 @@ async function callBytezAI(messages: { role: string; content: string }[]): Promi
     }
     if (response.status === 401) {
       throw new Error('Invalid API key or authentication failed.');
+    }
+    if (response.status === 402) {
+      throw new Error('Payment required. Please add funds to your Bytez account.');
     }
     throw new Error(`Bytez AI error: ${response.status}`);
   }

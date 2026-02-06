@@ -26,7 +26,7 @@ const model = sdk.model('openai/gpt-4.1-mini');
 const { error, output } = await model.run([...]);
 ```
 
-**After:** Direct API calls via fetch (browser-compatible)
+**After:** Direct API calls via fetch (browser-compatible) with new models
 ```typescript
 async function callBytezAPI(model, messages) {
   const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
@@ -39,6 +39,10 @@ async function callBytezAPI(model, messages) {
   });
   // Handle errors and parse response
 }
+
+// Using new models:
+// - deepseek-ai/DeepSeek-V3.2-Exp (for complex reasoning)
+// - mlfoundations-dev/oh-dcft-v3.1-gemini-1.5-flash (for faster operations)
 ```
 
 ## Changes Made
@@ -46,9 +50,9 @@ async function callBytezAPI(model, messages) {
 ### 1. **`/src/integrations/bytez/index.ts`** - Core Integration Module
 - ✅ Removed `import Bytez from 'bytez.js'` (line 1)
 - ✅ Created `callBytezAPI()` function for direct HTTP requests
-- ✅ Updated `generateNotesWithBytez()` to use `callBytezAPI('openai/gpt-4.1-mini', messages)`
-- ✅ Updated `generateQuizWithBytez()` to use `callBytezAPI('google/gemini-2-flash', messages)`
-- ✅ Updated `findVideoWithBytez()` to use `callBytezAPI('google/gemini-2-flash', messages)`
+- ✅ Updated `generateNotesWithBytez()` to use `callBytezAPI('deepseek-ai/DeepSeek-V3.2-Exp', messages)`
+- ✅ Updated `generateQuizWithBytez()` to use `callBytezAPI('deepseek-ai/DeepSeek-V3.2-Exp', messages)`
+- ✅ Updated `findVideoWithBytez()` to use `callBytezAPI('mlfoundations-dev/oh-dcft-v3.1-gemini-1.5-flash', messages)`
 - ✅ Added comprehensive error handling:
   - 401: Invalid API key
   - 429: Rate limit exceeded
@@ -71,13 +75,13 @@ async function callBytezAPI(model, messages) {
 **Bytez API Endpoint:** `https://api.bytez.ai/v1/chat/completions`
 
 **Supported Models:**
-- `openai/gpt-4.1-mini` - For notes generation
-- `google/gemini-2-flash` - For quiz and video search
+- `deepseek-ai/DeepSeek-V3.2-Exp` - For notes, quiz, and analysis (complex reasoning)
+- `mlfoundations-dev/oh-dcft-v3.1-gemini-1.5-flash` - For video search and adaptive questions (faster)
 
 **Request Format:**
 ```json
 {
-  "model": "openai/gpt-4.1-mini",
+  "model": "deepseek-ai/DeepSeek-V3.2-Exp",
   "messages": [
     {
       "role": "user",

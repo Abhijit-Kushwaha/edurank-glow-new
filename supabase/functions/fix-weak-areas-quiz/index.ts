@@ -34,23 +34,23 @@ interface TopicInput {
   weaknessScore: number;
 }
 
-// Bytez AI call function (using Gemini-3-pro-preview for weak areas quiz)
+// Bytez AI call function (using DeepSeek V3.2 Exp for weak areas quiz)
 async function callBytezAI(messages: { role: string; content: string }[]): Promise<string> {
   const BYTEZ_API_KEY = Deno.env.get('BYTEZ_API_KEY');
   if (!BYTEZ_API_KEY) {
     throw new Error('BYTEZ_API_KEY is not configured');
   }
 
-  console.log('Calling Bytez AI (Gemini-3-pro-preview) for weak areas quiz...');
+  console.log('Calling Bytez AI (DeepSeek V3.2 Exp) for weak areas quiz...');
   
-  const response = await fetch('https://api.bytez.com/v1/chat/completions', {
+  const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${BYTEZ_API_KEY}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'google/gemini-3-pro-preview',
+      model: 'deepseek-ai/DeepSeek-V3.2-Exp',
       messages,
       temperature: 0.7,
       max_tokens: 2000,
@@ -66,6 +66,9 @@ async function callBytezAI(messages: { role: string; content: string }[]): Promi
     }
     if (response.status === 401) {
       throw new Error('Invalid API key or authentication failed.');
+    }
+    if (response.status === 402) {
+      throw new Error('Payment required. Please add funds to your Bytez account.');
     }
     throw new Error(`Bytez AI error: ${response.status}`);
   }
