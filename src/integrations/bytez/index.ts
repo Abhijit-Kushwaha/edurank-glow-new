@@ -89,7 +89,7 @@ async function callBytezAPI(
 }
 
 /**
- * Generate study notes using GPT-4.1-mini
+ * Generate study notes using DeepSeek V3.2 Exp
  */
 export async function generateNotesWithBytez(
   videoTitle: string,
@@ -122,7 +122,7 @@ Requirements:
 
 Please provide detailed, comprehensive study notes that help students understand and remember the topic.`;
 
-  const { error, output } = await callBytezAPI('openai/gpt-4.1-mini', [
+  const { error, output } = await callBytezAPI('deepseek-ai/DeepSeek-V3.2-Exp', [
     {
       role: 'user',
       content: prompt,
@@ -184,7 +184,7 @@ Format your response as a valid JSON array with this structure:
 
 Return ONLY the JSON array, no markdown or extra text.`;
 
-  const { error, output } = await callBytezAPI('openai/gpt-4.1-mini', [
+  const { error, output } = await callBytezAPI('deepseek-ai/DeepSeek-V3.2-Exp', [
     {
       role: 'user',
       content: prompt,
