@@ -1,95 +1,96 @@
 /**
  * AI Service Integration
- * Handles all AI requests for notes generation, video search, and quiz generation
- * Browser-compatible implementation using AI SDK
+ * Optimized for fast notes generation using Qwen3-4B-Instruct model
+ * Browser-compatible implementation using direct API calls
  */
 
-import Bytez from "bytez.js";
-
-// Initialize AI SDK
+// Initialize API key
 const BYTEZ_API_KEY = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
-const sdk = new Bytez(BYTEZ_API_KEY);
 
 /**
- * Direct API call to AI backend for models (fallback method)
+ * Available high-performance models
+ */
+export const FAST_MODELS = {
+  // Ultra-fast model for notes and summarization
+  QWEN3_4B: 'Qwen/Qwen3-4B-Instruct-2507',
+  // Fallback models
+  DEEPSEEK_V3_2: 'deepseek-ai/DeepSeek-V3.2-Exp',
+  GEMINI_FLASH: 'mlfoundations-dev/oh-dcft-v3.1-gemini-1.5-flash',
+} as const;
+
+/**
+ * Direct API call to Bytez AI backend for fast model operations
+ * Optimized for low-latency responses
  */
 async function callBytezAPI(
   model: string,
-  messages: Array<{ role: string; content: string }>
+  messages: Array<{ role: string; content: string }>,
+  options?: {
+    temperature?: number;
+    max_tokens?: number;
+  }
 ): Promise<{ error?: string; output?: string }> {
   try {
-    console.log('Calling AI API with model:', model);
+    const temperature = options?.temperature ?? 0.5; // Lower for faster, more deterministic responses
+    const max_tokens = options?.max_tokens ?? 1500; // Optimized token limit
 
-    // Try using AI SDK first
-    const modelInstance = sdk.model(model);
-    const { error, output } = await modelInstance.run(messages);
+    console.log(`Calling Bytez AI with model: ${model}`);
 
-    if (error) {
-      console.warn('AI SDK failed, falling back to direct API:', error);
-      throw new Error(error);
+    const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${BYTEZ_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: messages,
+        temperature: temperature,
+        max_tokens: max_tokens,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('Bytez AI error:', errorData);
+
+      if (response.status === 401) {
+        return { error: 'Invalid API key. Please check your credentials.' };
+      } else if (response.status === 429) {
+        return { error: 'Rate limit exceeded. Please try again later.' };
+      } else if (response.status === 402) {
+        return { error: 'Insufficient credits. Please add credits to your account.' };
+      }
+
+      return { error: errorData.error?.message || `API error: ${response.status}` };
+    }
+
+    const data = await response.json();
+    const output = data.choices?.[0]?.message?.content || '';
+
+    if (!output) {
+      return { error: 'No response from AI model' };
     }
 
     return { output };
-  } catch (sdkError) {
-    console.warn('Bytez SDK failed, using direct API call:', sdkError);
+  } catch (apiError) {
+    console.error('Bytez AI call failed:', apiError);
 
-    // Fallback to direct API call
-    try {
-      const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${BYTEZ_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: model,
-          messages: messages,
-          temperature: 0.7,
-          max_tokens: 2000,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        console.error('AI API error:', errorData);
-
-        if (response.status === 401) {
-          return { error: 'Invalid API key. Please check your credentials.' };
-        } else if (response.status === 429) {
-          return { error: 'Rate limit exceeded. Please try again later.' };
-        } else if (response.status === 402) {
-          return { error: 'Insufficient credits. Please add credits to your account.' };
-        }
-
-        return { error: errorData.error?.message || `API error: ${response.status}` };
-      }
-
-      const data = await response.json();
-      const output = data.choices?.[0]?.message?.content || '';
-
-      if (!output) {
-        return { error: 'No response from AI model' };
-      }
-
-      return { output };
-    } catch (apiError) {
-      console.error('AI API call failed:', apiError);
-
-      if (apiError instanceof TypeError && apiError.message.includes('fetch')) {
-        return {
-          error: 'Network error. Please check your internet connection and try again.'
-        };
-      }
-
+    if (apiError instanceof TypeError && apiError.message.includes('fetch')) {
       return {
-        error: apiError instanceof Error ? apiError.message : 'Unknown error occurred',
+        error: 'Network error. Please check your internet connection and try again.'
       };
     }
+
+    return {
+      error: apiError instanceof Error ? apiError.message : 'Unknown error occurred',
+    };
   }
 }
 
 /**
- * Generate study notes using DeepSeek V3.2 Exp
+ * Ultra-fast note generation using Qwen3-4B
+ * Optimized for minimal latency while preserving quality
  */
 export async function generateNotesWithBytez(
   videoTitle: string,
@@ -101,43 +102,85 @@ export async function generateNotesWithBytez(
     board?: string;
   }
 ): Promise<{ notes?: string; error?: string }> {
-  const prompt = `Generate comprehensive study notes for an educational video.
+  // Optimized prompt for fast Qwen3-4B execution
+  const prompt = `Create concise but comprehensive study notes for an educational video.
 
-Video Title: "${videoTitle}"
-
-${filters.class ? `Class/Level: ${filters.class}` : ''}
-${filters.board ? `Board: ${filters.board}` : ''}
+Video: "${videoTitle}"
+${filters.class ? `Level: ${filters.class}` : ''}${filters.board ? ` | Board: ${filters.board}` : ''}
 Subject: ${filters.subject || 'General'}
-${filters.language ? `Language: ${filters.language}` : ''}
+${filters.language ? `Language: ${filters.language}\n` : ''}
 
-Content: ${videoContent}
+Content Summary:
+${videoContent}
 
-Requirements:
-- Create well-structured notes with clear headings
-- Include key concepts, definitions, and important points
-- Add practical examples where applicable
-- Keep language simple and student-friendly
-- Format for easy PDF conversion
-- Ensure content is syllabus-aligned for the selected class and board
+Format notes with:
+## Key Concepts
+## Important Points
+## Summary
 
-Please provide detailed, comprehensive study notes that help students understand and remember the topic.`;
+Notes should be clear, student-friendly, and exam-ready.`;
 
-  const { error, output } = await callBytezAPI('deepseek-ai/DeepSeek-V3.2-Exp', [
+  const { error, output } = await callBytezAPI(FAST_MODELS.QWEN3_4B, [
     {
       role: 'user',
       content: prompt,
     },
-  ]);
+  ], {
+    temperature: 0.3, // Lower temp for consistent, focused output
+    max_tokens: 1200, // Optimized for speed
+  });
 
   if (error) {
-    return { error };
+    // Fallback to DeepSeek if Qwen fails
+    console.warn('Qwen model failed, falling back to DeepSeek:', error);
+    const { error: fallbackError, output: fallbackOutput } = await callBytezAPI(FAST_MODELS.DEEPSEEK_V3_2, [
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ]);
+    
+    if (fallbackError) {
+      return { error: fallbackError };
+    }
+    return { notes: fallbackOutput };
   }
 
   return { notes: output };
 }
 
 /**
- * Generate quiz questions using AI model
+ * Fast summarization function for quick content extraction
+ * Uses Qwen3-4B for maximum speed
+ */
+export async function quickSummarize(
+  content: string,
+  maxLength: number = 300
+): Promise<{ summary?: string; error?: string }> {
+  const prompt = `Summarize this educational content in clear, bullet-point format (max ${maxLength} words):
+
+${content}`;
+
+  const { error, output } = await callBytezAPI(FAST_MODELS.QWEN3_4B, [
+    {
+      role: 'user',
+      content: prompt,
+    },
+  ], {
+    temperature: 0.2,
+    max_tokens: Math.min(500, Math.ceil(maxLength / 4)),
+  });
+
+  if (error) {
+    return { error };
+  }
+
+  return { summary: output };
+}
+
+/**
+ * Generate quiz questions using optimal model
+ * Uses DeepSeek for complex question generation
  */
 export async function generateQuizWithBytez(
   notes: string,
@@ -184,7 +227,7 @@ Format your response as a valid JSON array with this structure:
 
 Return ONLY the JSON array, no markdown or extra text.`;
 
-  const { error, output } = await callBytezAPI('deepseek-ai/DeepSeek-V3.2-Exp', [
+  const { error, output } = await callBytezAPI(FAST_MODELS.DEEPSEEK_V3_2, [
     {
       role: 'user',
       content: prompt,
@@ -205,7 +248,7 @@ Return ONLY the JSON array, no markdown or extra text.`;
 }
 
 /**
- * Find educational videos using DeepSeek V3.2 Exp
+ * Find educational videos using Gemini Flash for speed
  * Validates that videos are NOT shorts (duration >= 10 minutes)
  */
 export async function findVideoWithBytez(
@@ -228,55 +271,36 @@ export async function findVideoWithBytez(
 
   const classNote = filters.class ? `Class/Level: ${filters.class}` : '';
   const boardNote = filters.board ? `Board: ${filters.board}` : '';
-  const videoTypeNote = filters.videoType ? `Preferred Video Type: ${filters.videoType}` : '';
-  const durationNote = filters.videoDuration ? `Preferred Duration: ${filters.videoDuration}` : '';
+  const videoTypeNote = filters.videoType ? `Type: ${filters.videoType}` : '';
+  const durationNote = filters.videoDuration ? `Duration: ${filters.videoDuration}` : '';
 
-  const prompt = `Find the best educational videos for learning about: "${topic}"
+  const prompt = `Find best educational videos for: "${topic}"
 
-${classNote}
-${boardNote}
+${classNote} ${boardNote}
 Subject: ${filters.subject || 'General'}
 Language: ${filters.language || 'English'}
-${videoTypeNote}
-${durationNote}
+${videoTypeNote} ${durationNote}
 
-Important Constraints:
-- EXCLUDE YouTube Shorts (they must be at least 10 minutes long)
-- Select videos from reputable educational channels
-- Ensure content aligns with the selected class and board curriculum
-- Prioritize videos with high educational value
-- Verify videos are appropriate for the selected age group/class
+Rules:
+- EXCLUDE YouTube Shorts (minimum 10 minutes required)
+- Reputable educational channels only
+- Age-appropriate for selected class
+- High educational value
 
-Recommend 5-7 top videos with:
-- Title
-- Channel name
-- Duration (in minutes, must be >= 10)
-- Link/YouTube ID
-- Brief description (2-3 sentences)
-- Why it's good for this topic
-- Engagement score (1-10)
+Recommend 5 videos in JSON format:
+[{"title":"","channel":"","duration":15,"videoId":"","description":"","why":"","engagementScore":8}]
 
-Format as JSON array with structure:
-[
-  {
-    "title": "Video title",
-    "channel": "Channel name",
-    "duration": 15,
-    "videoId": "dQw4w9WgXcQ",
-    "description": "Brief description",
-    "why": "Why this video is helpful",
-    "engagementScore": 8
-  }
-]
+JSON ONLY, no extra text.`;
 
-Return ONLY the JSON array, no markdown or extra text.`;
-
-  const { error, output } = await callBytezAPI('mlfoundations-dev/oh-dcft-v3.1-gemini-1.5-flash', [
+  const { error, output } = await callBytezAPI(FAST_MODELS.GEMINI_FLASH, [
     {
       role: 'user',
       content: prompt,
     },
-  ]);
+  ], {
+    temperature: 0.4,
+    max_tokens: 1000,
+  });
 
   if (error) {
     return { error };

@@ -154,14 +154,14 @@ Focus on educational content that would help a student understand this topic tho
   }
 }
 
-// Bytez AI call function (using DeepSeek V3.2 Exp for notes generation)
+// Bytez AI call function (using Qwen3-4B-Instruct for ultra-fast notes generation)
 async function callBytezAI(messages: { role: string; content: string }[]): Promise<string> {
   const BYTEZ_API_KEY = Deno.env.get('BYTEZ_API_KEY');
   if (!BYTEZ_API_KEY) {
     throw new Error('BYTEZ_API_KEY is not configured');
   }
 
-  console.log('Calling Bytez AI (DeepSeek V3.2 Exp) for notes generation...');
+  console.log('Calling Bytez AI (Qwen3-4B-Instruct) for fast notes generation...');
   
   const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
     method: 'POST',
@@ -170,10 +170,10 @@ async function callBytezAI(messages: { role: string; content: string }[]): Promi
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'deepseek-ai/DeepSeek-V3.2-Exp',
+      model: 'Qwen/Qwen3-4B-Instruct-2507',
       messages,
-      temperature: 0.7,
-      max_tokens: 2000,
+      temperature: 0.3, // Lower temperature for more deterministic, focused responses
+      max_tokens: 1500, // Optimized token limit for faster generation
     }),
   });
 
@@ -279,37 +279,24 @@ serve(async (req) => {
     const generatedNotes = await callBytezAI([
       {
         role: 'user',
-        content: `You are an expert educational content creator specializing in generating comprehensive, well-structured study notes. 
+        content: `Generate clear, structured study notes for this educational video.
 
-Your notes must be:
-- Accurate and based on the provided context
-- Well-organized with clear headings
-- Student-friendly with practical examples
-- Complete with key definitions and concepts
+**Video:** "${sanitizedTitle}"
 
-Format your response in clear markdown with:
+${videoContext ? `**Content Summary:**
+${videoContext}` : 'Use your knowledge to create relevant notes.'}
+
+Format with these sections:
 ## Key Concepts
+- List main ideas and definitions
+
 ## Important Points  
+- Core facts and details
+
 ## Summary
-## Study Tips
+- Overview of topic
 
-Generate detailed, comprehensive study notes for an educational video.
-
-**Video Title:** "${sanitizedTitle}"
-**Video ID:** ${videoId}
-
-${videoContext ? `**Research Context:**
-${videoContext}
-
-Use the above research context to create accurate, detailed study notes.` : ""}
-
-Create professional study notes that would help a student:
-1. Understand the core concepts
-2. Remember key facts and definitions
-3. Apply the knowledge effectively
-4. Prepare for exams on this topic
-
-Make the notes comprehensive and educational.`
+Create concise, student-friendly notes suitable for learning and exams.`
       },
     ]);
 
@@ -317,7 +304,7 @@ Make the notes comprehensive and educational.`
       throw new Error("No content generated from AI");
     }
 
-    console.log("Notes generated successfully using Bytez AI");
+    console.log("Notes generated successfully using Qwen3-4B (fast generation)");
 
     // Check achievements after generating notes
     await serviceClient.rpc('check_achievements', { uid: user.id });

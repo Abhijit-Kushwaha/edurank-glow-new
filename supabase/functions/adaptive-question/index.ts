@@ -74,14 +74,14 @@ function sanitizeInput(input: string, maxLength: number): { isValid: boolean; sa
   return { isValid: true, sanitized };
 }
 
-// Bytez AI call function (using Gemini 1.5 Flash for adaptive questions)
+// Bytez AI call function (using Qwen3-4B for ultra-fast adaptive questions)
 async function callBytezAI(messages: { role: string; content: string }[]): Promise<string> {
   const BYTEZ_API_KEY = Deno.env.get('BYTEZ_API_KEY');
   if (!BYTEZ_API_KEY) {
     throw new Error('BYTEZ_API_KEY is not configured');
   }
 
-  console.log('Calling Bytez AI (Gemini 1.5 Flash) for adaptive question generation...');
+  console.log('Calling Bytez AI (Qwen3-4B) for fast adaptive question generation...');
   
   const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
     method: 'POST',
@@ -90,10 +90,10 @@ async function callBytezAI(messages: { role: string; content: string }[]): Promi
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'mlfoundations-dev/oh-dcft-v3.1-gemini-1.5-flash',
+      model: 'Qwen/Qwen3-4B-Instruct-2507',
       messages,
-      temperature: 0.7,
-      max_tokens: 2000,
+      temperature: 0.4,
+      max_tokens: 1200,
     }),
   });
 

@@ -127,14 +127,14 @@ function classifyStrength(weaknessScore: number, totalQuestions: number): string
   return "weak";
 }
 
-// Bytez AI call function (using DeepSeek V3.2 Exp for weakness analysis)
+// Bytez AI call function (using Qwen3-4B for fast weakness analysis)
 async function callBytezAI(messages: { role: string; content: string }[]): Promise<string> {
   const BYTEZ_API_KEY = Deno.env.get('BYTEZ_API_KEY');
   if (!BYTEZ_API_KEY) {
     throw new Error('BYTEZ_API_KEY is not configured');
   }
 
-  console.log('Calling Bytez AI (DeepSeek V3.2 Exp) for weakness analysis...');
+  console.log('Calling Bytez AI (Qwen3-4B) for fast weakness analysis...');
   
   const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
     method: 'POST',
@@ -143,10 +143,10 @@ async function callBytezAI(messages: { role: string; content: string }[]): Promi
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: 'deepseek-ai/DeepSeek-V3.2-Exp',
+      model: 'Qwen/Qwen3-4B-Instruct-2507',
       messages,
-      temperature: 0.7,
-      max_tokens: 2000,
+      temperature: 0.4,
+      max_tokens: 1200,
     }),
   });
 
