@@ -1,143 +1,52 @@
 /**
  * AI Service Integration using Bytez SDK
- * Uses DeepSeek-V3 and Kimi models for reliable performance
- * Browser-compatible implementation using SDK
+ * Uses DeepSeek-V3 and Kimi-K2 models only
+ * Clean, simple implementation
  */
 
-// Dynamic import for bytez.js to avoid build issues
-let BytezSDK: any = null;
+import Bytez from 'bytez.js';
 
-// Initialize bytez SDK
-const initBytezSDK = async () => {
-  if (BytezSDK) return BytezSDK;
-  
-  try {
-    const { default: Bytez } = await import('bytez.js');
-    const key = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
-    BytezSDK = new Bytez(key);
-    return BytezSDK;
-  } catch (error) {
-    console.error('Failed to load bytez.js SDK. Attempting direct API call...', error);
-    return null;
+// Initialize SDK
+const BYTEZ_KEY = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
+let bytezSDK: any = null;
+
+const getBytezSDK = () => {
+  if (!bytezSDK) {
+    bytezSDK = new Bytez(BYTEZ_KEY);
   }
+  return bytezSDK;
 };
 
 /**
- * Direct API call fallback for when SDK is not available
+ * Call Bytez with specified model
  */
-async function callBytezDirectAPI(
-  model: string,
-  messages: Array<{ role: string; content: string }>,
-  options?: {
-    temperature?: number;
-    max_tokens?: number;
-  }
+async function callBytezModel(
+  modelId: string,
+  messages: Array<{ role: string; content: string }>
 ): Promise<{ error?: string; output?: string }> {
   try {
-    const temperature = options?.temperature ?? 0.5;
-    const max_tokens = options?.max_tokens ?? 1500;
+    console.log(`Calling Bytez model: ${modelId}`);
+    const sdk = getBytezSDK();
+    const model = sdk.model(modelId);
+    const { error, output } = await model.run(messages);
 
-    console.log(`Calling Bytez AI directly with model: ${model}`);
-
-    const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859"}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: messages,
-        temperature: temperature,
-        max_tokens: max_tokens,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Bytez AI error:', errorData);
-
-      if (response.status === 401) {
-        return { error: 'Invalid API key. Please check your credentials.' };
-      } else if (response.status === 429) {
-        return { error: 'Rate limit exceeded. Please try again later.' };
-      } else if (response.status === 402) {
-        return { error: 'Insufficient credits. Please add credits to your account.' };
-      }
-
-      return { error: errorData.error?.message || `API error: ${response.status}` };
-    }
-
-    const data = await response.json();
-    const output = data.choices?.[0]?.message?.content || '';
-
-    if (!output) {
-      return { error: 'No response from AI model' };
+    if (error) {
+      console.error(`Model ${modelId} error:`, error);
+      return { error };
     }
 
     return { output };
-  } catch (apiError) {
-    console.error('Bytez API call failed:', apiError);
-
-    if (apiError instanceof TypeError && apiError.message.includes('fetch')) {
-      return {
-        error: 'Network error. Please check your internet connection and try again.'
-      };
-    }
-
-    return {
-      error: apiError instanceof Error ? apiError.message : 'Unknown error occurred',
-    };
+  } catch (err) {
+    console.error(`Failed to call ${modelId}:`, err);
+    return { error: err instanceof Error ? err.message : 'Unknown error' };
   }
 }
 
 /**
- * Call Bytez using SDK or fallback to direct API
- */
-async function callBytezAPI(
-  model: string,
-  messages: Array<{ role: string; content: string }>,
-  options?: {
-    temperature?: number;
-    max_tokens?: number;
-  }
-): Promise<{ error?: string; output?: string }> {
-  try {
-    const sdk = await initBytezSDK();
-    
-    if (sdk) {
-      try {
-        console.log(`Calling Bytez SDK with model: ${model}`);
-        const selectedModel = sdk.model(model);
-        const { error, output } = await selectedModel.run(messages);
-        
-        if (error) {
-          console.warn('SDK call failed, falling back to direct API:', error);
-          return await callBytezDirectAPI(model, messages, options);
-        }
-        
-        return { output };
-      } catch (sdkError) {
-        console.warn('Bytez SDK error, using direct API:', sdkError);
-        return await callBytezDirectAPI(model, messages, options);
-      }
-    } else {
-      // SDK not available, use direct API
-      return await callBytezDirectAPI(model, messages, options);
-    }
-  } catch (error) {
-    console.error('Bytez call failed:', error);
-    return { error: error instanceof Error ? error.message : 'Unknown error' };
-  }
-}
-
-/**
- * Available high-performance models
+ * Available models
  */
 export const FAST_MODELS = {
-  // Fast and reliable model
   DEEPSEEK_V3: 'deepseek-ai/DeepSeek-V3',
-  // Alternative fast model
   KIMI_K2: 'moonshotai/Kimi-K2-Instruct-0905',
 } as const;
 
