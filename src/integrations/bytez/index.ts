@@ -1,17 +1,32 @@
 /**
- * AI Service Integration
- * Uses Perplexity API for notes generation (Bytez service unavailable)
- * Browser-compatible implementation using direct API calls
+ * AI Service Integration using Bytez SDK
+ * Uses DeepSeek-V3 and Kimi models for reliable performance
+ * Browser-compatible implementation using SDK
  */
 
-// Initialize API keys
-const PERPLEXITY_API_KEY = import.meta.env.VITE_PERPLEXITY_API_KEY;
+// Dynamic import for bytez.js to avoid build issues
+let BytezSDK: any = null;
+
+// Initialize bytez SDK
+const initBytezSDK = async () => {
+  if (BytezSDK) return BytezSDK;
+  
+  try {
+    const { default: Bytez } = await import('bytez.js');
+    const key = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
+    BytezSDK = new Bytez(key);
+    return BytezSDK;
+  } catch (error) {
+    console.error('Failed to load bytez.js SDK. Attempting direct API call...', error);
+    return null;
+  }
+};
 
 /**
- * Direct API call to Perplexity AI for notes generation
- * Optimized for low-latency responses
+ * Direct API call fallback for when SDK is not available
  */
-async function callPerplexityAPI(
+async function callBytezDirectAPI(
+  model: string,
   messages: Array<{ role: string; content: string }>,
   options?: {
     temperature?: number;
@@ -22,16 +37,16 @@ async function callPerplexityAPI(
     const temperature = options?.temperature ?? 0.5;
     const max_tokens = options?.max_tokens ?? 1500;
 
-    console.log('Calling Perplexity AI for content generation...');
+    console.log(`Calling Bytez AI directly with model: ${model}`);
 
-    const response = await fetch('https://api.perplexity.ai/chat/completions', {
+    const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
+        'Authorization': `Bearer ${import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859"}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'sonar-pro',
+        model: model,
         messages: messages,
         temperature: temperature,
         max_tokens: max_tokens,
@@ -40,7 +55,7 @@ async function callPerplexityAPI(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Perplexity AI error:', errorData);
+      console.error('Bytez AI error:', errorData);
 
       if (response.status === 401) {
         return { error: 'Invalid API key. Please check your credentials.' };
@@ -62,7 +77,7 @@ async function callPerplexityAPI(
 
     return { output };
   } catch (apiError) {
-    console.error('Perplexity AI call failed:', apiError);
+    console.error('Bytez API call failed:', apiError);
 
     if (apiError instanceof TypeError && apiError.message.includes('fetch')) {
       return {
@@ -77,7 +92,57 @@ async function callPerplexityAPI(
 }
 
 /**
- * Generate study notes using Perplexity AI
+ * Call Bytez using SDK or fallback to direct API
+ */
+async function callBytezAPI(
+  model: string,
+  messages: Array<{ role: string; content: string }>,
+  options?: {
+    temperature?: number;
+    max_tokens?: number;
+  }
+): Promise<{ error?: string; output?: string }> {
+  try {
+    const sdk = await initBytezSDK();
+    
+    if (sdk) {
+      try {
+        console.log(`Calling Bytez SDK with model: ${model}`);
+        const selectedModel = sdk.model(model);
+        const { error, output } = await selectedModel.run(messages);
+        
+        if (error) {
+          console.warn('SDK call failed, falling back to direct API:', error);
+          return await callBytezDirectAPI(model, messages, options);
+        }
+        
+        return { output };
+      } catch (sdkError) {
+        console.warn('Bytez SDK error, using direct API:', sdkError);
+        return await callBytezDirectAPI(model, messages, options);
+      }
+    } else {
+      // SDK not available, use direct API
+      return await callBytezDirectAPI(model, messages, options);
+    }
+  } catch (error) {
+    console.error('Bytez call failed:', error);
+    return { error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+}
+
+/**
+ * Available high-performance models
+ */
+export const FAST_MODELS = {
+  // Fast and reliable model
+  DEEPSEEK_V3: 'deepseek-ai/DeepSeek-V3',
+  // Alternative fast model
+  KIMI_K2: 'moonshotai/Kimi-K2-Instruct-0905',
+} as const;
+
+/**
+ * Generate study notes using Bytez SDK
  * Optimized for comprehensive, structured learning material
  */
 export async function generateNotesWithBytez(
@@ -90,10 +155,6 @@ export async function generateNotesWithBytez(
     board?: string;
   }
 ): Promise<{ notes?: string; error?: string }> {
-  if (!PERPLEXITY_API_KEY) {
-    return { error: 'Perplexity API key not configured. Please set VITE_PERPLEXITY_API_KEY.' };
-  }
-
   const prompt = `Create comprehensive, well-structured study notes for an educational video.
 
 Video Title: "${videoTitle}"
@@ -127,7 +188,7 @@ Requirements:
 - Suitable for the specified class level
 - Focus on learning and retention`;
 
-  const { error, output } = await callPerplexityAPI([
+  const { error, output } = await callBytezAPI(FAST_MODELS.DEEPSEEK_V3, [
     {
       role: 'user',
       content: prompt,
@@ -139,29 +200,41 @@ Requirements:
 
   if (error) {
     console.error('Failed to generate notes:', error);
-    return { error };
+    
+    // Fallback to Kimi model
+    console.log('Falling back to Kimi model...');
+    const { error: fallbackError, output: fallbackOutput } = await callBytezAPI(FAST_MODELS.KIMI_K2, [
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ], {
+      temperature: 0.3,
+      max_tokens: 2000,
+    });
+
+    if (fallbackError) {
+      return { error: fallbackError };
+    }
+    return { notes: fallbackOutput };
   }
 
   return { notes: output };
 }
 
 /**
- * Fast summarization function using Perplexity
+ * Fast summarization function using Bytez SDK
  * Quick content extraction
  */
 export async function quickSummarize(
   content: string,
   maxLength: number = 300
 ): Promise<{ summary?: string; error?: string }> {
-  if (!PERPLEXITY_API_KEY) {
-    return { error: 'Perplexity API key not configured. Please set VITE_PERPLEXITY_API_KEY.' };
-  }
-
   const prompt = `Summarize this educational content in clear, bullet-point format (max ${maxLength} words):
 
 ${content}`;
 
-  const { error, output } = await callPerplexityAPI([
+  const { error, output } = await callBytezAPI(FAST_MODELS.DEEPSEEK_V3, [
     {
       role: 'user',
       content: prompt,
@@ -179,7 +252,7 @@ ${content}`;
 }
 
 /**
- * Generate quiz questions using Perplexity
+ * Generate quiz questions using Bytez SDK
  * Creates comprehensive, well-structured questions
  */
 export async function generateQuizWithBytez(
@@ -192,10 +265,6 @@ export async function generateQuizWithBytez(
   questionCount: number = 10,
   difficultyLevel: 'easy' | 'medium' | 'hard' = 'medium'
 ): Promise<{ questions?: any[]; error?: string }> {
-  if (!PERPLEXITY_API_KEY) {
-    return { error: 'Perplexity API key not configured. Please set VITE_PERPLEXITY_API_KEY.' };
-  }
-
   const classNote = filters.class ? `Class/Level: ${filters.class}` : '';
   const boardNote = filters.board ? `Board: ${filters.board}` : '';
 
@@ -231,7 +300,7 @@ Format your response as a valid JSON array with this structure:
 
 Return ONLY the JSON array, no markdown or extra text.`;
 
-  const { error, output } = await callPerplexityAPI([
+  const { error, output } = await callBytezAPI(FAST_MODELS.DEEPSEEK_V3, [
     {
       role: 'user',
       content: prompt,
@@ -256,7 +325,7 @@ Return ONLY the JSON array, no markdown or extra text.`;
 }
 
 /**
- * Find educational videos using Perplexity
+ * Find educational videos using Bytez SDK
  * Validates that videos are NOT shorts (duration >= 10 minutes)
  */
 export async function findVideoWithBytez(
@@ -270,10 +339,6 @@ export async function findVideoWithBytez(
     videoDuration?: string;
   }
 ): Promise<{ videos?: any[]; error?: string }> {
-  if (!PERPLEXITY_API_KEY) {
-    return { error: 'Perplexity API key not configured. Please set VITE_PERPLEXITY_API_KEY.' };
-  }
-
   // Validate that user is not searching for YouTube shorts
   if (topic.toLowerCase().includes('shorts') || topic.includes('youtube.com/shorts')) {
     return {
@@ -304,7 +369,7 @@ Recommend 5 videos in JSON format:
 
 JSON ONLY, no extra text.`;
 
-  const { error, output } = await callPerplexityAPI([
+  const { error, output } = await callBytezAPI(FAST_MODELS.DEEPSEEK_V3, [
     {
       role: 'user',
       content: prompt,
