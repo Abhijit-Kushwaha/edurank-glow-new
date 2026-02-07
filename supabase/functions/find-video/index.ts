@@ -221,7 +221,7 @@ async function callBytezAI(messages: { role: string; content: string }[]): Promi
   return data.choices?.[0]?.message?.content || '';
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     const corsHeaders = getCORSHeaders(req.headers.get('origin'));
