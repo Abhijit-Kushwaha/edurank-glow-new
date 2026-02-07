@@ -1,29 +1,17 @@
 /**
  * AI Service Integration
- * Optimized for fast notes generation using Qwen3-4B-Instruct model
+ * Uses Perplexity API for notes generation (Bytez service unavailable)
  * Browser-compatible implementation using direct API calls
  */
 
-// Initialize API key
-const BYTEZ_API_KEY = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
+// Initialize API keys
+const PERPLEXITY_API_KEY = import.meta.env.VITE_PERPLEXITY_API_KEY;
 
 /**
- * Available high-performance models
- */
-export const FAST_MODELS = {
-  // Ultra-fast model for notes and summarization
-  QWEN3_4B: 'Qwen/Qwen3-4B-Instruct-2507',
-  // Fallback models
-  DEEPSEEK_V3_2: 'deepseek-ai/DeepSeek-V3.2-Exp',
-  GEMINI_FLASH: 'mlfoundations-dev/oh-dcft-v3.1-gemini-1.5-flash',
-} as const;
-
-/**
- * Direct API call to Bytez AI backend for fast model operations
+ * Direct API call to Perplexity AI for notes generation
  * Optimized for low-latency responses
  */
-async function callBytezAPI(
-  model: string,
+async function callPerplexityAPI(
   messages: Array<{ role: string; content: string }>,
   options?: {
     temperature?: number;
@@ -31,19 +19,19 @@ async function callBytezAPI(
   }
 ): Promise<{ error?: string; output?: string }> {
   try {
-    const temperature = options?.temperature ?? 0.5; // Lower for faster, more deterministic responses
-    const max_tokens = options?.max_tokens ?? 1500; // Optimized token limit
+    const temperature = options?.temperature ?? 0.5;
+    const max_tokens = options?.max_tokens ?? 1500;
 
-    console.log(`Calling Bytez AI with model: ${model}`);
+    console.log('Calling Perplexity AI for content generation...');
 
-    const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
+    const response = await fetch('https://api.perplexity.ai/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${BYTEZ_API_KEY}`,
+        'Authorization': `Bearer ${PERPLEXITY_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: model,
+        model: 'sonar-pro',
         messages: messages,
         temperature: temperature,
         max_tokens: max_tokens,
@@ -52,7 +40,7 @@ async function callBytezAPI(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      console.error('Bytez AI error:', errorData);
+      console.error('Perplexity AI error:', errorData);
 
       if (response.status === 401) {
         return { error: 'Invalid API key. Please check your credentials.' };
@@ -74,7 +62,7 @@ async function callBytezAPI(
 
     return { output };
   } catch (apiError) {
-    console.error('Bytez AI call failed:', apiError);
+    console.error('Perplexity AI call failed:', apiError);
 
     if (apiError instanceof TypeError && apiError.message.includes('fetch')) {
       return {
@@ -89,8 +77,8 @@ async function callBytezAPI(
 }
 
 /**
- * Ultra-fast note generation using Qwen3-4B
- * Optimized for minimal latency while preserving quality
+ * Generate study notes using Perplexity AI
+ * Optimized for comprehensive, structured learning material
  */
 export async function generateNotesWithBytez(
   videoTitle: string,
@@ -102,66 +90,78 @@ export async function generateNotesWithBytez(
     board?: string;
   }
 ): Promise<{ notes?: string; error?: string }> {
-  // Optimized prompt for fast Qwen3-4B execution
-  const prompt = `Create concise but comprehensive study notes for an educational video.
+  if (!PERPLEXITY_API_KEY) {
+    return { error: 'Perplexity API key not configured. Please set VITE_PERPLEXITY_API_KEY.' };
+  }
 
-Video: "${videoTitle}"
-${filters.class ? `Level: ${filters.class}` : ''}${filters.board ? ` | Board: ${filters.board}` : ''}
+  const prompt = `Create comprehensive, well-structured study notes for an educational video.
+
+Video Title: "${videoTitle}"
+${filters.class ? `Class/Level: ${filters.class}` : ''}${filters.board ? ` | Board: ${filters.board}` : ''}
 Subject: ${filters.subject || 'General'}
-${filters.language ? `Language: ${filters.language}\n` : ''}
+${filters.language ? `Language: ${filters.language}` : ''}
 
-Content Summary:
-${videoContent}
+Content to summarize:
+${videoContent || 'Generate notes based on the video title provided.'}
 
-Format notes with:
+Create notes with the following structure:
+
 ## Key Concepts
+- List key definitions and main ideas
+- Explain important terminology
+
 ## Important Points
+- Core facts and critical information
+- Details students should memorize
+- Exam-important concepts
+
 ## Summary
+- Concise overview of the topic
+- Main takeaways
+- How concepts connect
 
-Notes should be clear, student-friendly, and exam-ready.`;
+Requirements:
+- Clear, student-friendly language
+- Well-organized with bullet points
+- Exam-ready format
+- Suitable for the specified class level
+- Focus on learning and retention`;
 
-  const { error, output } = await callBytezAPI(FAST_MODELS.QWEN3_4B, [
+  const { error, output } = await callPerplexityAPI([
     {
       role: 'user',
       content: prompt,
     },
   ], {
-    temperature: 0.3, // Lower temp for consistent, focused output
-    max_tokens: 1200, // Optimized for speed
+    temperature: 0.3,
+    max_tokens: 2000,
   });
 
   if (error) {
-    // Fallback to DeepSeek if Qwen fails
-    console.warn('Qwen model failed, falling back to DeepSeek:', error);
-    const { error: fallbackError, output: fallbackOutput } = await callBytezAPI(FAST_MODELS.DEEPSEEK_V3_2, [
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ]);
-    
-    if (fallbackError) {
-      return { error: fallbackError };
-    }
-    return { notes: fallbackOutput };
+    console.error('Failed to generate notes:', error);
+    return { error };
   }
 
   return { notes: output };
 }
 
 /**
- * Fast summarization function for quick content extraction
- * Uses Qwen3-4B for maximum speed
+ * Fast summarization function using Perplexity
+ * Quick content extraction
  */
 export async function quickSummarize(
   content: string,
   maxLength: number = 300
 ): Promise<{ summary?: string; error?: string }> {
+  if (!PERPLEXITY_API_KEY) {
+    return { error: 'Perplexity API key not configured. Please set VITE_PERPLEXITY_API_KEY.' };
+  }
+
   const prompt = `Summarize this educational content in clear, bullet-point format (max ${maxLength} words):
 
 ${content}`;
 
-  const { error, output } = await callBytezAPI(FAST_MODELS.QWEN3_4B, [
+  const { error, output } = await callPerplexityAPI([
     {
       role: 'user',
       content: prompt,
@@ -179,8 +179,8 @@ ${content}`;
 }
 
 /**
- * Generate quiz questions using optimal model
- * Uses DeepSeek for complex question generation
+ * Generate quiz questions using Perplexity
+ * Creates comprehensive, well-structured questions
  */
 export async function generateQuizWithBytez(
   notes: string,
@@ -192,6 +192,10 @@ export async function generateQuizWithBytez(
   questionCount: number = 10,
   difficultyLevel: 'easy' | 'medium' | 'hard' = 'medium'
 ): Promise<{ questions?: any[]; error?: string }> {
+  if (!PERPLEXITY_API_KEY) {
+    return { error: 'Perplexity API key not configured. Please set VITE_PERPLEXITY_API_KEY.' };
+  }
+
   const classNote = filters.class ? `Class/Level: ${filters.class}` : '';
   const boardNote = filters.board ? `Board: ${filters.board}` : '';
 
@@ -227,12 +231,15 @@ Format your response as a valid JSON array with this structure:
 
 Return ONLY the JSON array, no markdown or extra text.`;
 
-  const { error, output } = await callBytezAPI(FAST_MODELS.DEEPSEEK_V3_2, [
+  const { error, output } = await callPerplexityAPI([
     {
       role: 'user',
       content: prompt,
     },
-  ]);
+  ], {
+    temperature: 0.5,
+    max_tokens: 2500,
+  });
 
   if (error) {
     return { error };
@@ -243,12 +250,13 @@ Return ONLY the JSON array, no markdown or extra text.`;
     const questions = JSON.parse(output || '[]');
     return { questions };
   } catch (parseError) {
+    console.error('Failed to parse quiz questions:', parseError);
     return { error: 'Failed to parse quiz questions' };
   }
 }
 
 /**
- * Find educational videos using Gemini Flash for speed
+ * Find educational videos using Perplexity
  * Validates that videos are NOT shorts (duration >= 10 minutes)
  */
 export async function findVideoWithBytez(
@@ -262,6 +270,10 @@ export async function findVideoWithBytez(
     videoDuration?: string;
   }
 ): Promise<{ videos?: any[]; error?: string }> {
+  if (!PERPLEXITY_API_KEY) {
+    return { error: 'Perplexity API key not configured. Please set VITE_PERPLEXITY_API_KEY.' };
+  }
+
   // Validate that user is not searching for YouTube shorts
   if (topic.toLowerCase().includes('shorts') || topic.includes('youtube.com/shorts')) {
     return {
@@ -292,14 +304,14 @@ Recommend 5 videos in JSON format:
 
 JSON ONLY, no extra text.`;
 
-  const { error, output } = await callBytezAPI(FAST_MODELS.GEMINI_FLASH, [
+  const { error, output } = await callPerplexityAPI([
     {
       role: 'user',
       content: prompt,
     },
   ], {
     temperature: 0.4,
-    max_tokens: 1000,
+    max_tokens: 1500,
   });
 
   if (error) {
@@ -322,6 +334,7 @@ JSON ONLY, no extra text.`;
 
     return { videos: validVideos };
   } catch (parseError) {
+    console.error('Failed to parse video search results:', parseError);
     return { error: 'Failed to parse video search results' };
   }
 }
