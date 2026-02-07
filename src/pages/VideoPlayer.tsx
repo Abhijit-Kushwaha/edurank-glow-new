@@ -241,16 +241,56 @@ const VideoPlayer = () => {
         },
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error) {
+        console.error('Function invoke error:', error);
+        throw error;
+      }
 
-      const generated = data?.notes || data?.notes?.content || '';
-      const noteLines = (generated || '').split('\n').filter((n: string) => n.trim());
+      // If the function returned notes even when saving failed, prefer those
+      const resp = data || {};
+      let generatedRaw: any = resp.notes ?? resp;
+
+      // Normalize different shapes (string, object with role/content, JSON string)
+      let generatedText = '';
+      try {
+        if (!generatedRaw) {
+          generatedText = '';
+        } else if (typeof generatedRaw === 'string') {
+          // Might be JSON string or plain markdown
+          try {
+            const parsed = JSON.parse(generatedRaw);
+            generatedText = parsed.notes || parsed.notes_text || parsed?.notes?.content || generatedRaw;
+          } catch (e) {
+            generatedText = generatedRaw;
+          }
+        } else if (typeof generatedRaw === 'object') {
+          if (generatedRaw.role && generatedRaw.content) generatedText = generatedRaw.content;
+          else if (generatedRaw.notes) generatedText = typeof generatedRaw.notes === 'string' ? generatedRaw.notes : JSON.stringify(generatedRaw.notes);
+          else generatedText = JSON.stringify(generatedRaw);
+        } else {
+          generatedText = String(generatedRaw);
+        }
+      } catch (e) {
+        console.error('Failed to normalize notes response:', e);
+        generatedText = '';
+      }
+
+      if (!generatedText) {
+        if (resp?.error) throw new Error(resp.error);
+        throw new Error('No notes returned from server');
+      }
+
+      const noteLines = (generatedText || '').split('\n').filter((n: string) => n.trim());
       setNotes(noteLines);
-      toast.success('✨ AI Notes generated successfully!');
 
-      // Track achievement
-      trackNotesGenerated();
+      if (resp.saved === false) {
+        toast.success('✨ AI Notes generated (not saved).');
+        console.warn('Notes were generated but failed to save:', resp.error || 'unknown');
+      } else {
+        toast.success('✨ AI Notes generated successfully!');
+        // Track achievement
+        trackNotesGenerated();
+      }
     } catch (error: any) {
       console.error('Error generating notes:', error);
       
