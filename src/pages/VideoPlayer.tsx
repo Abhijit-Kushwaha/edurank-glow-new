@@ -232,6 +232,12 @@ const VideoPlayer = () => {
           videoTitle: todo.title || 'Study Material',
           videoId: todo.video_id,
           todoId,
+          subject: todo.subject || '',
+          class: (todo as any).class || '',
+          chapter: '',
+          topic: '',
+          notesStyle: 'exam-oriented',
+          difficulty: 'medium',
         },
       });
 

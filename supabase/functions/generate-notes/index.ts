@@ -263,7 +263,18 @@ serve(async (req) => {
 
     console.log(`Processing notes request for user ${user.id}`);
 
-    const { videoTitle, videoId, todoId } = await req.json();
+    const body = await req.json();
+    const videoTitle = body.videoTitle;
+    const videoId = body.videoId;
+    const todoId = body.todoId;
+    // Optional richer inputs
+    const subject = body.subject || body.subjectName || '';
+    const classLevel = body.class || body.classLevel || body.grade || '';
+    const chapter = body.chapter || '';
+    const topic = body.topic || '';
+    const examType = body.examType || body.exam || '';
+    const notesStyle = body.notesStyle || body.style || 'exam-oriented';
+    const difficulty = body.difficulty || 'medium';
 
     if (!videoTitle || !videoId || !todoId) {
       return new Response(
@@ -303,36 +314,47 @@ serve(async (req) => {
     // Fetch video context using Perplexity
     const videoContext = await fetchVideoContext(sanitizedTitle, videoId);
 
-    // Generate notes using Bytez AI
-    const generatedNotes = await callBytezAI([
-      {
-        role: 'user',
-        content: `Generate clear, structured study notes for this educational video.
+    // Generate notes using Bytez AI according to the Edurank notes logic
+    const userPrompt = [];
+    // System role: core philosophy and strict rules
+    userPrompt.push({ role: 'system', content: `You are Edurank — an AI that thinks like a topper, a teacher, and the YouTube algorithm combined.\nGoals: Save time, reduce overload, improve retention, align with exams.\nRules: No long paragraphs, no unnecessary theory, use simple language, prioritize exam relevance. Output JSON only when asked.` });
 
-**Video:** "${sanitizedTitle}"
+    // Provide context and inputs
+    let inputSummary = `Video Title: "${sanitizedTitle}"\nVideo ID: ${videoId || 'N/A'}\n`;
+    if (subject) inputSummary += `Subject: ${subject}\n`;
+    if (classLevel) inputSummary += `Class/Level: ${classLevel}\n`;
+    if (chapter) inputSummary += `Chapter: ${chapter}\n`;
+    if (topic) inputSummary += `Topic: ${topic}\n`;
+    if (examType) inputSummary += `Exam Type: ${examType}\n`;
+    inputSummary += `Requested Notes Style: ${notesStyle}\nDifficulty: ${difficulty}\n`;
 
-${videoContext ? `**Content Summary:**
-${videoContext}` : 'Use your knowledge to create relevant notes.'}
+    userPrompt.push({ role: 'user', content: `You will produce study notes following the Edurank specification. Use the Subject→Chapter→Topic→Subtopic architecture.\n\n${inputSummary}\n${videoContext ? `Video Context:\n${videoContext}` : 'No additional video context provided.'}` });
 
-Format with these sections:
-## Key Concepts
-- List main ideas and definitions
+    // Instructions: layered format, outputs, and formats
+    userPrompt.push({ role: 'user', content: `AI Notes Generation Instructions:\n1) Topic Understanding (definitions, core concepts, formulas, exam weightage, common mistakes). If you cannot confidently understand, respond with an explicit error.\n2) Structure notes in layers:\n   - Concept Overview (simple)\n   - Key Definitions\n   - Important Formulas\n   - Explanation with Example(s)\n   - Diagrams (text-based description or ASCII placeholders)\n   - Exam Tips\n   - Common Mistakes\n   - One-line Revision\n3) Difficulty scaling: produce versions for Easy, Medium, Hard tuned to the ` + difficulty + ` level.\n4) Smart compression: also output Short Notes (bullets), Mind-map bullets, and Last-day revision (very concise).\n5) Notes↔Video sync: where possible include timestamp placeholders like \"[video_timestamp:MM:SS]\" next to concepts (if unknown, leave as null).\n6) Output format: Return a single JSON object with keys: ` + "`notes` (full layered markdown), `shortNotes`, `mindmap`, `revisionSheet`, `examTips`, `commonMistakes`, `metadata`" + `. Ensure valid JSON only. Do not include extra commentary.` });
 
-## Important Points  
-- Core facts and details
+    // Request example-based exam mode content
+    userPrompt.push({ role: 'user', content: `Also provide an optional 'examMode' object containing: expected questions (3 sample questions with answers in PYQ style), and a formula-only sheet. Keep answers concise.` });
 
-## Summary
-- Overview of topic
-
-Create concise, student-friendly notes suitable for learning and exams.`
-      },
-    ]);
+    const generatedNotes = await callBytezAI(userPrompt);
 
     if (!generatedNotes) {
       throw new Error("No content generated from AI");
     }
 
     console.log("Notes generated successfully using Qwen3-4B (fast generation)");
+
+    // Attempt to parse JSON result; fall back to raw text
+    let parsed: any = null;
+    let notesText = '';
+    try {
+      parsed = JSON.parse(generatedNotes);
+      notesText = parsed.notes || parsed.notes_text || JSON.stringify(parsed);
+    } catch (e) {
+      // Not JSON — treat entire output as notes markdown
+      notesText = generatedNotes;
+      parsed = { notes: generatedNotes };
+    }
 
     // Check achievements after generating notes
     await serviceClient.rpc('check_achievements', { uid: user.id });
@@ -343,7 +365,7 @@ Create concise, student-friendly notes suitable for learning and exams.`
         user_id: user.id,
         todo_id: todoId,
         video_id: videoId,
-        content: generatedNotes,
+        content: notesText,
         is_ai_generated: true,
       })
       .select()
