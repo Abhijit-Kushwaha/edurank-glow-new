@@ -84,6 +84,30 @@ export const FAST_MODELS = {
 } as const;
 
 /**
+ * Diagnostic: test API key and connectivity using Qwen3-0.6B
+ */
+export async function testBytezKey(): Promise<{ ok: boolean; error?: string; output?: string }> {
+  try {
+    const modelId = 'Qwen/Qwen3-0.6B';
+    console.log('Testing Bytez key with model:', modelId);
+    const { error, output } = await callBytezModel(modelId, [
+      { role: 'user', content: 'Hello' },
+    ]);
+
+    if (error) {
+      console.error('Test model returned error:', error);
+      return { ok: false, error };
+    }
+
+    console.log('Test model output:', output);
+    return { ok: true, output };
+  } catch (err) {
+    console.error('Test failed:', err);
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/**
  * Generate study notes
  */
 export async function generateNotesWithBytez(
