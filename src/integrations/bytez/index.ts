@@ -1,18 +1,34 @@
 /**
  * AI Service Integration using Bytez SDK
  * Uses DeepSeek-V3 and Kimi-K2 models only
- * Clean, simple implementation
+ * Clean, simple implementation with better error handling
  */
 
-import Bytez from 'bytez.js';
-
-// Initialize SDK
-const BYTEZ_KEY = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
+let Bytez: any = null;
 let bytezSDK: any = null;
 
-const getBytezSDK = () => {
+// Load bytez dynamically
+const loadBytez = async () => {
+  if (!Bytez) {
+    try {
+      console.log('Loading bytez.js SDK...');
+      const module = await import('bytez.js');
+      Bytez = module.default || module;
+      console.log('Bytez loaded successfully');
+    } catch (err) {
+      console.error('Failed to load bytez.js:', err);
+      throw new Error('Failed to load AI service');
+    }
+  }
+  return Bytez;
+};
+
+const getBytezSDK = async () => {
   if (!bytezSDK) {
-    bytezSDK = new Bytez(BYTEZ_KEY);
+    const BytezClass = await loadBytez();
+    const key = import.meta.env.VITE_BYTEZ_API_KEY || "2622dd06541127bea7641c3ad0ed8859";
+    console.log('Initializing Bytez SDK with key:', key.substring(0, 8) + '...');
+    bytezSDK = new BytezClass(key);
   }
   return bytezSDK;
 };
@@ -26,16 +42,33 @@ async function callBytezModel(
 ): Promise<{ error?: string; output?: string }> {
   try {
     console.log(`Calling Bytez model: ${modelId}`);
-    const sdk = getBytezSDK();
-    const model = sdk.model(modelId);
-    const { error, output } = await model.run(messages);
-
-    if (error) {
-      console.error(`Model ${modelId} error:`, error);
-      return { error };
+    const sdk = await getBytezSDK();
+    
+    if (!sdk) {
+      throw new Error('SDK not initialized');
     }
 
-    return { output };
+    const model = sdk.model(modelId);
+    if (!model) {
+      throw new Error(`Failed to load model: ${modelId}`);
+    }
+
+    console.log('Running model with', messages.length, 'messages');
+    const result = await model.run(messages);
+    
+    console.log('Model result:', result);
+
+    if (result.error) {
+      console.error(`Model ${modelId} error:`, result.error);
+      return { error: result.error };
+    }
+
+    if (!result.output) {
+      console.error(`Model ${modelId} returned empty output`);
+      return { error: 'No output from model' };
+    }
+
+    return { output: result.output };
   } catch (err) {
     console.error(`Failed to call ${modelId}:`, err);
     return { error: err instanceof Error ? err.message : 'Unknown error' };
@@ -51,8 +84,7 @@ export const FAST_MODELS = {
 } as const;
 
 /**
- * Generate study notes using Bytez SDK
- * Optimized for comprehensive, structured learning material
+ * Generate study notes
  */
 export async function generateNotesWithBytez(
   videoTitle: string,
@@ -64,6 +96,8 @@ export async function generateNotesWithBytez(
     board?: string;
   }
 ): Promise<{ notes?: string; error?: string }> {
+  console.log('Starting note generation for:', videoTitle);
+  
   const prompt = `Create comprehensive, well-structured study notes for an educational video.
 
 Video Title: "${videoTitle}"
@@ -97,43 +131,36 @@ Requirements:
 - Suitable for the specified class level
 - Focus on learning and retention`;
 
-  const { error, output } = await callBytezAPI(FAST_MODELS.DEEPSEEK_V3, [
-    {
-      role: 'user',
-      content: prompt,
-    },
-  ], {
-    temperature: 0.3,
-    max_tokens: 2000,
-  });
+  // Try DeepSeek first
+  console.log('Attempting DeepSeek-V3...');
+  let result = await callBytezModel(FAST_MODELS.DEEPSEEK_V3, [
+    { role: 'user', content: prompt },
+  ]);
 
-  if (error) {
-    console.error('Failed to generate notes:', error);
+  // Fallback to Kimi if DeepSeek fails
+  if (result.error) {
+    console.warn('DeepSeek failed:', result.error);
+    console.log('Attempting Kimi-K2...');
+    result = await callBytezModel(FAST_MODELS.KIMI_K2, [
+      { role: 'user', content: prompt },
+    ]);
     
-    // Fallback to Kimi model
-    console.log('Falling back to Kimi model...');
-    const { error: fallbackError, output: fallbackOutput } = await callBytezAPI(FAST_MODELS.KIMI_K2, [
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ], {
-      temperature: 0.3,
-      max_tokens: 2000,
-    });
-
-    if (fallbackError) {
-      return { error: fallbackError };
+    if (result.error) {
+      console.error('Both models failed:', result.error);
     }
-    return { notes: fallbackOutput };
   }
 
-  return { notes: output };
+  if (result.error) {
+    console.error('Final error:', result.error);
+    return { error: result.error };
+  }
+
+  console.log('Notes generated successfully, length:', result.output?.length);
+  return { notes: result.output };
 }
 
 /**
- * Fast summarization function using Bytez SDK
- * Quick content extraction
+ * Fast summarization
  */
 export async function quickSummarize(
   content: string,
@@ -143,26 +170,23 @@ export async function quickSummarize(
 
 ${content}`;
 
-  const { error, output } = await callBytezAPI(FAST_MODELS.DEEPSEEK_V3, [
-    {
-      role: 'user',
-      content: prompt,
-    },
-  ], {
-    temperature: 0.2,
-    max_tokens: Math.min(500, Math.ceil(maxLength / 4)),
-  });
+  // Try DeepSeek first
+  let result = await callBytezModel(FAST_MODELS.DEEPSEEK_V3, [
+    { role: 'user', content: prompt },
+  ]);
 
-  if (error) {
-    return { error };
+  // Fallback to Kimi if DeepSeek fails
+  if (result.error) {
+    result = await callBytezModel(FAST_MODELS.KIMI_K2, [
+      { role: 'user', content: prompt },
+    ]);
   }
 
-  return { summary: output };
+  return result.error ? result : { summary: result.output };
 }
 
 /**
- * Generate quiz questions using Bytez SDK
- * Creates comprehensive, well-structured questions
+ * Generate quiz questions
  */
 export async function generateQuizWithBytez(
   notes: string,
@@ -209,23 +233,24 @@ Format your response as a valid JSON array with this structure:
 
 Return ONLY the JSON array, no markdown or extra text.`;
 
-  const { error, output } = await callBytezAPI(FAST_MODELS.DEEPSEEK_V3, [
-    {
-      role: 'user',
-      content: prompt,
-    },
-  ], {
-    temperature: 0.5,
-    max_tokens: 2500,
-  });
+  // Try DeepSeek first
+  let result = await callBytezModel(FAST_MODELS.DEEPSEEK_V3, [
+    { role: 'user', content: prompt },
+  ]);
 
-  if (error) {
-    return { error };
+  // Fallback to Kimi if DeepSeek fails
+  if (result.error) {
+    result = await callBytezModel(FAST_MODELS.KIMI_K2, [
+      { role: 'user', content: prompt },
+    ]);
+  }
+
+  if (result.error) {
+    return result;
   }
 
   try {
-    // Parse the JSON response
-    const questions = JSON.parse(output || '[]');
+    const questions = JSON.parse(result.output || '[]');
     return { questions };
   } catch (parseError) {
     console.error('Failed to parse quiz questions:', parseError);
@@ -234,8 +259,7 @@ Return ONLY the JSON array, no markdown or extra text.`;
 }
 
 /**
- * Find educational videos using Bytez SDK
- * Validates that videos are NOT shorts (duration >= 10 minutes)
+ * Find educational videos
  */
 export async function findVideoWithBytez(
   topic: string,
@@ -278,23 +302,25 @@ Recommend 5 videos in JSON format:
 
 JSON ONLY, no extra text.`;
 
-  const { error, output } = await callBytezAPI(FAST_MODELS.DEEPSEEK_V3, [
-    {
-      role: 'user',
-      content: prompt,
-    },
-  ], {
-    temperature: 0.4,
-    max_tokens: 1500,
-  });
+  // Try DeepSeek first
+  let result = await callBytezModel(FAST_MODELS.DEEPSEEK_V3, [
+    { role: 'user', content: prompt },
+  ]);
 
-  if (error) {
-    return { error };
+  // Fallback to Kimi if DeepSeek fails
+  if (result.error) {
+    result = await callBytezModel(FAST_MODELS.KIMI_K2, [
+      { role: 'user', content: prompt },
+    ]);
+  }
+
+  if (result.error) {
+    return result;
   }
 
   try {
-    const videos = JSON.parse(output || '[]');
-    
+    const videos = JSON.parse(result.output || '[]');
+
     // Additional client-side validation to ensure no shorts
     const validVideos = videos.filter((video: any) => {
       return video.duration && video.duration >= 10;
