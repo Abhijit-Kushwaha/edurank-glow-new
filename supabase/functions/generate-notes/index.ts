@@ -160,41 +160,54 @@ async function callBytezAI(messages: { role: string; content: string }[]): Promi
   if (!BYTEZ_API_KEY) {
     throw new Error('BYTEZ_API_KEY is not configured');
   }
+  console.log('Calling Bytez AI (Qwen3-4B-Instruct) via bytez.js SDK for fast notes generation...');
 
-  console.log('Calling Bytez AI (Qwen3-4B-Instruct) for fast notes generation...');
-  
-  const response = await fetch('https://api.bytez.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${BYTEZ_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'Qwen/Qwen3-4B-Instruct-2507',
-      messages,
-      temperature: 0.3, // Lower temperature for more deterministic, focused responses
-      max_tokens: 1500, // Optimized token limit for faster generation
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Bytez AI error:', response.status);
-    
-    if (response.status === 429) {
-      throw new Error('Rate limit exceeded. Please try again later.');
+  try {
+    // Dynamically import bytez.js from esm.sh so this function can run in Deno-based runtimes
+    // Using esm.sh avoids bundling Node-only packages directly into the Deno function.
+    const module = await import('https://esm.sh/bytez.js@3');
+    const Bytez = module.default || module;
+    if (!Bytez) {
+      throw new Error('Failed to load bytez.js SDK');
     }
-    if (response.status === 401) {
+
+    const sdk = new Bytez(BYTEZ_API_KEY);
+    const model = sdk.model('Qwen/Qwen3-4B-Instruct-2507');
+    if (!model) {
+      throw new Error('Failed to load Qwen3-4B model');
+    }
+
+    // Some Bytez models don't accept `max_tokens`; omit it for compatibility
+    const result = await model.run(messages, { temperature: 0.3 });
+
+    console.log('Bytez SDK raw result:', typeof result === 'object' ? JSON.stringify(result).slice(0, 2000) : String(result));
+
+    if (!result) {
+      throw new Error('Empty response from Bytez SDK');
+    }
+
+    if (result.error) {
+      console.error('Bytez SDK error:', result.error);
+      if (result.error?.toString().toLowerCase().includes('rate limit')) {
+        throw new Error('Rate limit exceeded. Please try again later.');
+      }
+      throw new Error(result.error?.toString() || 'Unknown Bytez SDK error');
+    }
+
+    // The SDK returns `output` like the browser/client code expects
+    return result.output || '';
+  } catch (err) {
+    console.error('Error calling Bytez SDK:', err instanceof Error ? err.message : String(err));
+    // Surface common errors as friendly messages
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('401') || /invalid api key/i.test(msg)) {
       throw new Error('Invalid API key or authentication failed.');
     }
-    if (response.status === 402) {
-      throw new Error('Payment required. Please add funds to your Bytez account.');
+    if (msg.includes('rate limit') || msg.includes('429')) {
+      throw new Error('Rate limit exceeded. Please try again later.');
     }
-    throw new Error(`Bytez AI error: ${response.status}`);
+    throw err;
   }
-
-  const data = await response.json();
-  return data.choices?.[0]?.message?.content || '';
 }
 
 serve(async (req) => {
@@ -214,18 +227,33 @@ serve(async (req) => {
       );
     }
 
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    // Allow a development bypass for local testing without a valid Supabase JWT.
+    const devBypass = Deno.env.get('DEV_BYPASS_AUTH') === 'true';
+    let user: any = null;
+    let supabaseClient: any = null;
+    if (devBypass) {
+      user = { id: Deno.env.get('DEV_TEST_USER_ID') || 'local-test-user' };
+      console.log('DEV_BYPASS_AUTH enabled - using mock user:', user.id);
+      // Create a supabase client with service role for local testing so inserts/rpcs work
+      supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
       );
+    } else {
+      supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        { global: { headers: { Authorization: authHeader } } }
+      );
+
+      const { data: getUserData, error: userError } = await supabaseClient.auth.getUser();
+      user = getUserData?.user;
+      if (userError || !user) {
+        return new Response(
+          JSON.stringify({ error: "Unauthorized" }),
+          { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     const serviceClient = createClient(

@@ -226,24 +226,20 @@ const VideoPlayer = () => {
     setShowNotes(true);
 
     try {
-      // Import the Bytez integration module
-      const { generateNotesWithBytez } = await import('../integrations/bytez/index');
-      
-      const result = await generateNotesWithBytez(
-        todo.title || 'Study Material',
-        `Please generate comprehensive study notes for this content.`,
-        {
-          subject: todo.subject || 'General',
-          class: todo.class || undefined,
-          board: todo.board || undefined,
-        }
-      );
+      // Call server-side Supabase Edge Function to generate notes (uses bytez.js SDK server-side)
+      const { data, error } = await supabase.functions.invoke('generate-notes', {
+        body: {
+          videoTitle: todo.title || 'Study Material',
+          videoId: todo.video_id,
+          todoId,
+        },
+      });
 
-      if (result.error) {
-        throw new Error(result.error);
-      }
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      const noteLines = (result.notes || '').split('\n').filter((n: string) => n.trim());
+      const generated = data?.notes || data?.notes?.content || '';
+      const noteLines = (generated || '').split('\n').filter((n: string) => n.trim());
       setNotes(noteLines);
       toast.success('✨ AI Notes generated successfully!');
 
